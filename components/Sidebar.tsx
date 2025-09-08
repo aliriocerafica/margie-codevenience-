@@ -36,7 +36,8 @@ import {
     ChevronRight,
     Grid3X3,
     Search,
-    Tag
+    Tag,
+    ScanLine
 } from "lucide-react";
 import Link from "next/link";
 import { ThemeSwitch } from "./ThemeSwitch";
@@ -74,6 +75,11 @@ export default function Sidebar({ children }: SidebarProps) {
             name: "Categories",
             href: "/category",
             icon: Tag,
+        },
+        {
+            name: "Scan QR",
+            href: "/scanqr",
+            icon: ScanLine,
         },
         {
             name: "Calendar",
