@@ -4,7 +4,7 @@ import { Link } from "@heroui/link";
 import clsx from "clsx";
 
 import { Providers } from "./providers";
-import { ThemeSwitch } from '@/components/ThemeSwitch';
+import ConditionalLayout from "@/components/ConditionalLayout";
 
 
 
@@ -23,17 +23,11 @@ export default function RootLayout({
   return (
     <html suppressHydrationWarning lang="en">
       <head />
-      <body
-      >
+      <body>
         <Providers themeProps={{ attribute: "class", defaultTheme: "dark" }}>
-          <div>
-            <div className="fixed top-4 right-4 z-50">
-              <ThemeSwitch />
-            </div>
-            <main>
-              {children}
-            </main>
-          </div>
+          <ConditionalLayout>
+            {children}
+          </ConditionalLayout>
         </Providers>
       </body>
     </html>
