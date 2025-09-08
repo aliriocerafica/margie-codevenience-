@@ -45,45 +45,98 @@ const ScanQR = () => {
   const startCamera = async () => {
     try {
       setError("");
+      console.log("Starting camera...");
       
       // Check if getUserMedia is supported
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         throw new Error("Camera API not supported on this device/browser");
       }
 
-      const stream = await navigator.mediaDevices.getUserMedia({
+      // iOS Safari specific constraints
+      const constraints = {
         video: {
           facingMode: "environment", // Use back camera
-          width: { ideal: 1280 },
-          height: { ideal: 720 }
+          width: { ideal: 1280, max: 1920 },
+          height: { ideal: 720, max: 1080 },
+          // iOS Safari sometimes needs these
+          aspectRatio: { ideal: 16/9 },
+          frameRate: { ideal: 30, max: 30 }
         }
-      });
+      };
+
+      console.log("Requesting camera with constraints:", constraints);
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      console.log("Camera stream obtained:", stream);
 
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         streamRef.current = stream;
         setHasPermission(true);
         setIsScanning(true);
+        console.log("Camera started successfully");
+        
+        // Ensure video plays on iOS
+        videoRef.current.play().catch(e => {
+          console.error("Video play failed:", e);
+        });
       }
     } catch (err: any) {
-      console.error("Camera access denied:", err);
+      console.error("Camera access failed:", err);
+      console.error("Error details:", {
+        name: err.name,
+        message: err.message,
+        constraint: err.constraint
+      });
+      
       let errorMessage = "Camera access failed";
       
       if (err.name === "NotAllowedError") {
-        errorMessage = "Camera permission denied. Please allow camera access and try again.";
+        errorMessage = "Camera permission denied. Please allow camera access in Safari settings and try again.";
       } else if (err.name === "NotFoundError") {
-        errorMessage = "No camera found on this device.";
+        errorMessage = "No camera found. Make sure your device has a camera.";
       } else if (err.name === "NotSupportedError") {
-        errorMessage = "Camera not supported on this device/browser.";
+        errorMessage = "Camera not supported on this browser. Try using Safari or Chrome.";
       } else if (err.name === "NotReadableError") {
-        errorMessage = "Camera is being used by another app.";
+        errorMessage = "Camera is being used by another app. Close other camera apps and try again.";
+      } else if (err.name === "OverconstrainedError") {
+        errorMessage = "Camera constraints not supported. Trying with basic settings...";
+        // Try with simpler constraints
+        setTimeout(() => startCameraFallback(), 1000);
+        return;
       } else if (err.message && err.message.includes("not supported")) {
-        errorMessage = "Camera API not supported. Try using HTTPS or a different browser.";
+        errorMessage = "Camera API not supported. Make sure you're using HTTPS.";
       } else if (typeof window !== 'undefined' && window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
-        errorMessage = "Camera requires HTTPS. Please use HTTPS or localhost.";
+        errorMessage = "Camera requires HTTPS. Please use https:// in the URL.";
       }
       
       setError(errorMessage);
+      setHasPermission(false);
+    }
+  };
+
+  const startCameraFallback = async () => {
+    try {
+      console.log("Trying fallback camera constraints...");
+      // Very basic constraints for maximum compatibility
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: true // Just request any camera
+      });
+      
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        streamRef.current = stream;
+        setHasPermission(true);
+        setIsScanning(true);
+        setError("");
+        console.log("Fallback camera started successfully");
+        
+        videoRef.current.play().catch(e => {
+          console.error("Fallback video play failed:", e);
+        });
+      }
+    } catch (err: any) {
+      console.error("Fallback camera also failed:", err);
+      setError("Camera not available. Please check permissions and try again.");
       setHasPermission(false);
     }
   };
@@ -263,7 +316,23 @@ const ScanQR = () => {
                 </Button>
               </div>
               
-              {hasPermission === false && (
+              {error && (
+                <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                  <p className="text-red-800 dark:text-red-200 text-sm font-medium mb-2">
+                    ❌ {error}
+                  </p>
+                  {error.includes("permission") && (
+                    <div className="text-red-700 dark:text-red-300 text-xs space-y-1">
+                      <p><strong>iPhone/Safari:</strong></p>
+                      <p>• Allow camera permission when prompted</p>
+                      <p>• Check Settings → Safari → Camera</p>
+                      <p>• Make sure URL starts with https://</p>
+                    </div>
+                  )}
+                </div>
+              )}
+              
+              {hasPermission === false && !error && (
                 <div className="text-center">
                   <p className="text-red-600 dark:text-red-400 text-sm">
                     Camera permission required to scan codes
