@@ -38,6 +38,8 @@ interface DataTableProps {
     description?: string;
     filter?: boolean;
     statusOptions?: StatusOption[];
+    isLoading?: boolean;
+    error?: any;
 }
 
 const DataTable = ({
@@ -47,6 +49,8 @@ const DataTable = ({
     description = "",
     filter = false,
     statusOptions = [],
+    isLoading = false,
+    error = null,
 }: DataTableProps) => {
     const [searchTerm, setSearchTerm] = useState("");
     const [currentPage, setCurrentPage] = useState(1);
@@ -69,19 +73,34 @@ const DataTable = ({
 
     // filtering + search
     const filteredData = useMemo(() => {
+        if (!data || !Array.isArray(data)) {
+            return [];
+        }
+        
+        // Ensure searchTerm and statusFilter are strings
+        const safeSearchTerm = searchTerm != null ? String(searchTerm) : "";
+        const safeStatusFilter = statusFilter != null ? String(statusFilter) : "all";
+        
         return data.filter((item) => {
+            if (!item) return false;
+            
             const matchesSearch = columns.some(
-                (column) =>
-                    visibleColumns.includes(column.key) &&
-                    String(item[column.key] ?? "")
+                (column) => {
+                    if (!visibleColumns.includes(column.key)) return false;
+                    
+                    const value = item[column.key];
+                    const stringValue = value != null ? String(value) : "";
+                    return stringValue
                         .toLowerCase()
-                        .includes(searchTerm.toLowerCase())
+                        .includes(safeSearchTerm.toLowerCase());
+                }
             );
 
-            const itemStatus = item.status ?? "Unknown";
+            const itemStatus = item.status;
+            const statusString = itemStatus != null ? String(itemStatus) : "Unknown";
             const matchesStatus =
-                statusFilter === "all" ||
-                itemStatus.toLowerCase() === statusFilter.toLowerCase();
+                safeStatusFilter === "all" ||
+                statusString.toLowerCase() === safeStatusFilter.toLowerCase();
 
             return matchesSearch && matchesStatus;
         });

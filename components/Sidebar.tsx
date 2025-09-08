@@ -17,6 +17,7 @@ import {
     DropdownMenu,
     DropdownItem,
     Divider,
+    Input,
 } from "@heroui/react";
 import { 
     Home, 
@@ -33,10 +34,15 @@ import {
     HelpCircle,
     ChevronLeft,
     ChevronRight,
-    Grid3X3
+    Grid3X3,
+    Search,
+    Tag
 } from "lucide-react";
 import Link from "next/link";
+import { ThemeSwitch } from "./ThemeSwitch";
 import { usePathname } from "next/navigation";
+import { useSearch } from "@/contexts/SearchContext";
+import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 
 interface SidebarProps {
     children: React.ReactNode;
@@ -46,7 +52,12 @@ export default function Sidebar({ children }: SidebarProps) {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
+    const [localSearchQuery, setLocalSearchQuery] = useState("");
     const pathname = usePathname();
+    const { openSearchModal } = useSearch();
+    
+    // Enable keyboard shortcuts
+    useKeyboardShortcuts();
 
     const menuItems = [
         {
@@ -58,6 +69,11 @@ export default function Sidebar({ children }: SidebarProps) {
             name: "Products",
             href: "/product",
             icon: Package,
+        },
+        {
+            name: "Categories",
+            href: "/category",
+            icon: Tag,
         },
         {
             name: "Calendar",
@@ -102,34 +118,65 @@ export default function Sidebar({ children }: SidebarProps) {
         }, 2000);
     };
 
+    const handleSearch = (e: React.FormEvent) => {
+        e.preventDefault();
+        openSearchModal();
+    };
+
+    const handleSearchClick = () => {
+        openSearchModal();
+    };
+
+    // Filter menu items based on local search query (for sidebar filtering)
+    const filteredMenuItems = menuItems.filter(item =>
+        item.name.toLowerCase().includes(localSearchQuery.toLowerCase())
+    );
+
+    const filteredUtilityItems = utilityItems.filter(item =>
+        item.name.toLowerCase().includes(localSearchQuery.toLowerCase())
+    );
+
     return (
-        <div className="flex h-screen bg-purple-50 overflow-hidden">
+        <div className="flex h-screen bg-gray-50 dark:bg-gray-950 overflow-hidden">
             {/* Desktop Sidebar */}
             <div className={`hidden md:flex md:flex-col transition-all duration-300 relative ${
-                isCollapsed ? 'md:w-20 lg:w-20' : 'md:w-64 lg:w-64'
+                isCollapsed ? 'md:w-20 lg:w-20' : 'md:w-72 lg:w-72'
             }`}>
-                <div className="flex flex-col flex-grow bg-white overflow-y-auto border-r border-gray-200 m-2">
+                <div className="flex flex-col flex-grow bg-gradient-to-b from-[#003366] to-[#004488] overflow-y-auto">
                     {/* Header */}
-                    <div className="flex items-center justify-center p-4 border-b border-gray-100 h-16">
-                        <div className="flex items-center">
-                            <div className="w-8 h-8 bg-[#003366] rounded-full flex items-center justify-center flex-shrink-0">
-                                <img 
-                                    src="/Logo.png" 
-                                    alt="Logo" 
-                                    className="w-6 h-6 object-contain"
-                                />
-                            </div>
+                    <div className="flex items-center justify-between p-4 border-b border-white/20 h-16">
+                        <div className="flex items-center gap-3 min-w-0">
+                            <img 
+                                src="/LogoWhite.png" 
+                                alt="Logo" 
+                                className="w-8 h-8 object-contain flex-shrink-0"
+                            />
                             {!isCollapsed && (
-                                <span className="ml-3 text-lg font-bold text-gray-900 whitespace-nowrap">
+                                <span className="ml-1 text-lg font-bold text-white whitespace-nowrap truncate">
                                     Margie CodeVenience
                                 </span>
                             )}
                         </div>
                     </div>
 
+                    {/* Global Search Button */}
+                    <div className="mx-4 mt-4 mb-2">
+                        <div className="bg-white/10 backdrop-blur-sm rounded-lg p-2">
+                            <Button
+                                variant="light"
+                                startContent={<Search className="h-4 w-4" />}
+                                onClick={handleSearchClick}
+                                className="text-white/80 hover:text-white hover:bg-white/10 text-sm w-full justify-start"
+                                size="sm"
+                            >
+                                {!isCollapsed && "Search everything..."}
+                            </Button>
+                        </div>
+                    </div>
+
                     {/* Main Navigation */}
                     <nav className="flex-1 p-4 space-y-2">
-                        {menuItems.map((item) => {
+                        {filteredMenuItems.map((item) => {
                             const Icon = item.icon;
                             const isActive = pathname === item.href;
                             
@@ -139,8 +186,8 @@ export default function Sidebar({ children }: SidebarProps) {
                                     href={item.href}
                                     className={`group flex items-center px-3 py-3 text-sm font-medium rounded-lg transition-all duration-200 relative ${
                                         isActive
-                                            ? "bg-purple-100 text-[#003366]"
-                                            : "text-gray-600 hover:bg-gray-50 hover:text-[#003366]"
+                                            ? "bg-white/20 text-white"
+                                            : "text-white/80 hover:bg-white/10 hover:text-white"
                                     } ${isCollapsed ? 'justify-center' : ''}`}
                                     title={isCollapsed ? item.name : ''}
                                 >
@@ -160,18 +207,18 @@ export default function Sidebar({ children }: SidebarProps) {
 
                     {/* Divider */}
                     <div className="px-4">
-                        <div className="border-t border-gray-200"></div>
+                        <div className="border-t border-white/20"></div>
                     </div>
 
                     {/* Utility Items */}
                     <nav className="p-4 space-y-2">
-                        {utilityItems.map((item) => {
+                        {filteredUtilityItems.map((item) => {
                             const Icon = item.icon;
                             
                             return (
                                 <button
                                     key={item.name}
-                                    className={`group flex items-center px-3 py-3 text-sm font-medium rounded-lg transition-all duration-200 text-gray-600 hover:bg-gray-50 hover:text-[#003366] w-full ${
+                                    className={`group flex items-center px-3 py-3 text-sm font-medium rounded-lg transition-all duration-200 text-white/80 hover:bg-white/10 hover:text-white w-full ${
                                         isCollapsed ? 'justify-center' : ''
                                     }`}
                                     title={isCollapsed ? item.name : ''}
@@ -191,7 +238,7 @@ export default function Sidebar({ children }: SidebarProps) {
                     </nav>
 
                     {/* User Profile Section */}
-                    <div className="p-4 border-t border-gray-100">
+                    <div className="p-4 border-t border-white/20">
                         {isCollapsed ? (
                             <div className="flex justify-center">
                                 <Dropdown placement="top-start">
@@ -240,10 +287,10 @@ export default function Sidebar({ children }: SidebarProps) {
                                             className="bg-yellow-100 text-yellow-800"
                                         />
                                         <div className="text-left ml-3">
-                                            <p className="text-xs text-gray-500 flex items-center">
+                                            <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center">
                                                 Welcome back 👋
                                             </p>
-                                            <p className="text-sm font-medium text-gray-900">Johnathan</p>
+                                            <p className="text-sm font-medium text-gray-900 dark:text-gray-100">Johnathan</p>
                                         </div>
                                         <ChevronRight className="h-4 w-4 ml-auto text-gray-400" />
                                     </Button>
@@ -286,32 +333,33 @@ export default function Sidebar({ children }: SidebarProps) {
             {isMenuOpen && (
                 <div className="fixed inset-0 z-50 md:hidden">
                     <div 
-                        className="fixed inset-0 bg-black bg-opacity-50 transition-opacity duration-300" 
+                        className="fixed inset-0 bg-black/30 backdrop-blur-sm transition-all duration-300" 
                         onClick={() => setIsMenuOpen(false)} 
                     />
-                    <div className="relative flex flex-col w-80 max-w-[85vw] h-full bg-white shadow-xl">
+                                    <div className="relative flex flex-col w-80 max-w-[85vw] h-full bg-gradient-to-b from-[#003366] to-[#004488] shadow-xl">
                         {/* Mobile Header */}
-                        <div className="flex items-center justify-between p-4 border-b border-gray-100 bg-white">
+                        <div className="flex items-center justify-between p-4 border-b border-white/20">
                             <div className="flex items-center">
-                                <div className="w-8 h-8 bg-[#003366] rounded-full flex items-center justify-center flex-shrink-0">
-                                    <img 
-                                        src="/Logo.png" 
-                                        alt="Logo" 
-                                        className="w-6 h-6 object-contain"
-                                    />
-                                </div>
-                                <span className="ml-3 text-lg font-bold text-gray-900">
+                                <img 
+                                    src="/LogoWhite.png" 
+                                    alt="Logo" 
+                                    className="w-8 h-8 object-contain flex-shrink-0"
+                                />
+                                <span className="ml-3 text-lg font-bold text-white">
                                     Margie CodeVenience
                                 </span>
                             </div>
-                            <Button
-                                variant="light"
-                                isIconOnly
-                                onClick={() => setIsMenuOpen(false)}
-                                className="text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full"
-                            >
-                                <X className="h-5 w-5" />
-                            </Button>
+                            <div className="flex items-center gap-2">
+                                <ThemeSwitch />
+                                <Button
+                                    variant="light"
+                                    isIconOnly
+                                    onClick={() => setIsMenuOpen(false)}
+                                    className="text-white/80 hover:text-white hover:bg-white/10 rounded-full"
+                                >
+                                    <X className="h-5 w-5" />
+                                </Button>
+                            </div>
                         </div>
 
                         {/* Mobile Navigation */}
@@ -327,8 +375,8 @@ export default function Sidebar({ children }: SidebarProps) {
                                         onClick={() => setIsMenuOpen(false)}
                                         className={`group flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-all duration-200 relative ${
                                             isActive
-                                                ? "bg-purple-100 text-[#003366]"
-                                                : "text-gray-600 hover:bg-gray-50 hover:text-[#003366]"
+                                                ? "bg-white/20 text-white"
+                                                : "text-white/80 hover:bg-white/10 hover:text-white"
                                         }`}
                                     >
                                         <div className="relative flex-shrink-0">
@@ -345,7 +393,7 @@ export default function Sidebar({ children }: SidebarProps) {
 
                         {/* Mobile Utility Items */}
                         <div className="px-4">
-                            <div className="border-t border-gray-200"></div>
+                            <div className="border-t border-gray-200 dark:border-gray-800"></div>
                         </div>
                         <nav className="p-4 space-y-1">
                             {utilityItems.map((item) => {
@@ -354,7 +402,7 @@ export default function Sidebar({ children }: SidebarProps) {
                                 return (
                                     <button
                                         key={item.name}
-                                        className="group flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-all duration-200 text-gray-600 hover:bg-gray-50 hover:text-[#003366] w-full"
+                                        className="group flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-all duration-200 text-white/80 hover:bg-white/10 hover:text-white w-full"
                                     >
                                         <div className="relative flex-shrink-0">
                                             <Icon className="h-5 w-5" />
@@ -369,7 +417,7 @@ export default function Sidebar({ children }: SidebarProps) {
                         </nav>
 
                         {/* Mobile User Profile */}
-                        <div className="p-4 border-t border-gray-100 bg-gray-50">
+                        <div className="p-4 border-t border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900">
                             <Dropdown placement="top-start">
                                 <DropdownTrigger>
                                     <Button
@@ -382,10 +430,10 @@ export default function Sidebar({ children }: SidebarProps) {
                                             className="bg-yellow-100 text-yellow-800 flex-shrink-0"
                                         />
                                         <div className="text-left ml-3">
-                                            <p className="text-xs text-gray-500 flex items-center">
+                                            <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center">
                                                 Welcome back 👋
                                             </p>
-                                            <p className="text-sm font-medium text-gray-900">Johnathan</p>
+                                            <p className="text-sm font-medium text-gray-900 dark:text-gray-100">Johnathan</p>
                                         </div>
                                         <ChevronRight className="h-4 w-4 ml-auto text-gray-400" />
                                     </Button>
@@ -416,7 +464,7 @@ export default function Sidebar({ children }: SidebarProps) {
             {/* Main Content */}
             <div className="flex flex-col flex-1 overflow-hidden">
                 {/* Mobile Menu Toggle - Only visible on mobile */}
-                <div className="md:hidden bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
+                <div className="md:hidden bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 py-3 flex items-center justify-between">
                     <Button
                         variant="light"
                         onClick={() => setIsMenuOpen(!isMenuOpen)}
@@ -433,14 +481,14 @@ export default function Sidebar({ children }: SidebarProps) {
                                 className="w-4 h-4 object-contain"
                             />
                         </div>
-                        <span className="ml-2 text-sm font-medium text-gray-900">
+                        <span className="ml-2 text-sm font-medium text-gray-900 dark:text-gray-100">
                             Margie CodeVenience
                         </span>
                     </div>
                 </div>
 
                 {/* Page Content */}
-                <main className="flex-1 relative overflow-y-auto focus:outline-none bg-gray-50">
+                <main className="flex-1 relative overflow-y-auto focus:outline-none bg-gray-50 dark:bg-gray-950">
                     <div className="py-4 md:py-6">
                         <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8">
                             {children}

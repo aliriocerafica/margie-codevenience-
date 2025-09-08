@@ -51,3 +51,9 @@ export const subtitle = tv({
     fullWidth: true,
   },
 });
+
+export const cardTone = {
+  base: "border border-gray-200 dark:border-gray-800",
+  body: "p-6",
+  header: "pb-3",
+};

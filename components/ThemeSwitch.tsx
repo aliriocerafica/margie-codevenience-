@@ -1,6 +1,6 @@
 "use client";
 
-import { FC } from "react";
+import { FC, useEffect, useState } from "react";
 import { VisuallyHidden } from "@react-aria/visually-hidden";
 import { SwitchProps, useSwitch } from "@heroui/switch";
 import { useTheme } from "next-themes";
@@ -18,11 +18,17 @@ export const ThemeSwitch: FC<ThemeSwitchProps> = ({
   className,
   classNames,
 }) => {
-  const { theme, setTheme } = useTheme();
+  const { resolvedTheme, setTheme } = useTheme();
   const isSSR = useIsSSR();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const onChange = () => {
-    theme === "light" ? setTheme("dark") : setTheme("light");
+    const next = (resolvedTheme ?? "light") === "light" ? "dark" : "light";
+    setTheme(next);
   };
 
   const {
@@ -33,10 +39,14 @@ export const ThemeSwitch: FC<ThemeSwitchProps> = ({
     getInputProps,
     getWrapperProps,
   } = useSwitch({
-    isSelected: theme === "light" || isSSR,
-    "aria-label": `Switch to ${theme === "light" || isSSR ? "dark" : "light"} mode`,
+    isSelected: (resolvedTheme ?? "light") === "light" || isSSR,
+    "aria-label": `Switch to ${((resolvedTheme ?? "light") === "light" || isSSR) ? "dark" : "light"} mode`,
     onChange,
   });
+
+  if (!mounted) {
+    return null;
+  }
 
   return (
     <Component

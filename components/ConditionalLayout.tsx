@@ -2,6 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import Sidebar from "./Sidebar";
+import FloatingTopNav from "./FloatingTopNav";
 
 interface ConditionalLayoutProps {
     children: React.ReactNode;
@@ -17,5 +18,10 @@ export default function ConditionalLayout({ children }: ConditionalLayoutProps) 
         return <>{children}</>;
     }
     
-    return <Sidebar>{children}</Sidebar>;
+    return (
+        <>
+            <FloatingTopNav />
+            <Sidebar>{children}</Sidebar>
+        </>
+    );
 }
