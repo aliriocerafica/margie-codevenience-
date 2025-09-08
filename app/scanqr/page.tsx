@@ -45,6 +45,12 @@ const ScanQR = () => {
   const startCamera = async () => {
     try {
       setError("");
+      
+      // Check if getUserMedia is supported
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error("Camera API not supported on this device/browser");
+      }
+
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: "environment", // Use back camera
@@ -59,9 +65,25 @@ const ScanQR = () => {
         setHasPermission(true);
         setIsScanning(true);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Camera access denied:", err);
-      setError("Camera access denied. Please allow camera permission.");
+      let errorMessage = "Camera access failed";
+      
+      if (err.name === "NotAllowedError") {
+        errorMessage = "Camera permission denied. Please allow camera access and try again.";
+      } else if (err.name === "NotFoundError") {
+        errorMessage = "No camera found on this device.";
+      } else if (err.name === "NotSupportedError") {
+        errorMessage = "Camera not supported on this device/browser.";
+      } else if (err.name === "NotReadableError") {
+        errorMessage = "Camera is being used by another app.";
+      } else if (err.message && err.message.includes("not supported")) {
+        errorMessage = "Camera API not supported. Try using HTTPS or a different browser.";
+      } else if (typeof window !== 'undefined' && window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
+        errorMessage = "Camera requires HTTPS. Please use HTTPS or localhost.";
+      }
+      
+      setError(errorMessage);
       setHasPermission(false);
     }
   };
@@ -149,52 +171,106 @@ const ScanQR = () => {
               )}
             </div>
           </CardHeader>
-          <CardBody>
-            {!isScanning ? (
-              <div className="text-center py-8">
-                <div className="w-20 h-20 mx-auto mb-4 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center">
-                  <ScanLine className="h-10 w-10 text-gray-400" />
-                </div>
-                <p className="text-gray-600 dark:text-gray-400 mb-4">
-                  Start camera to scan QR codes or barcodes
-                </p>
-                <Button
-                  color="primary"
-                  onClick={startCamera}
-                  startContent={<Camera className="h-4 w-4" />}
-                  className="bg-[#003366] hover:bg-[#004488]"
-                >
-                  Start Camera
-                </Button>
-                {hasPermission === false && (
-                  <p className="text-red-600 dark:text-red-400 text-sm mt-2">
-                    Camera permission required
-                  </p>
-                )}
-              </div>
-            ) : (
-              <div className="relative">
+          <CardBody className="p-0">
+            {/* Always show the scanner frame with camera or placeholder */}
+            <div className="relative h-80 bg-black rounded-lg overflow-hidden">
+              {/* Camera Video or Placeholder */}
+              {isScanning ? (
                 <video
                   ref={videoRef}
                   autoPlay
                   playsInline
                   muted
-                  className="w-full h-64 object-cover rounded-lg bg-black"
+                  className="w-full h-full object-cover"
                 />
-                <div className="absolute inset-0 border-2 border-[#003366] rounded-lg pointer-events-none">
-                  <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-48 h-48">
-                    <div className="w-full h-full border-2 border-[#003366] rounded-lg animate-pulse opacity-75"></div>
-                    <div className="absolute top-2 left-2 w-4 h-4 border-t-2 border-l-2 border-[#003366]"></div>
-                    <div className="absolute top-2 right-2 w-4 h-4 border-t-2 border-r-2 border-[#003366]"></div>
-                    <div className="absolute bottom-2 left-2 w-4 h-4 border-b-2 border-l-2 border-[#003366]"></div>
-                    <div className="absolute bottom-2 right-2 w-4 h-4 border-b-2 border-r-2 border-[#003366]"></div>
+              ) : (
+                <div className="w-full h-full bg-gradient-to-br from-gray-800 to-gray-900 flex items-center justify-center">
+                  <div className="text-center">
+                    <ScanLine className="h-16 w-16 text-gray-400 mx-auto mb-4 animate-pulse" />
+                    <p className="text-gray-300 text-lg font-medium">Camera View</p>
+                    <p className="text-gray-400 text-sm mt-1">Press start to begin scanning</p>
                   </div>
                 </div>
-                <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black/50 text-white px-3 py-1 rounded-full text-sm">
-                  Position code within frame
+              )}
+              
+              {/* Scanner Overlay Frame - Always Visible */}
+              <div className="absolute inset-0 pointer-events-none">
+                {/* Scanner Target Frame */}
+                <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-56 h-56">
+                  <div className="w-full h-full border-2 border-white rounded-lg relative">
+                    {/* Corner brackets */}
+                    <div className="absolute top-0 left-0 w-6 h-6 border-t-4 border-l-4 border-[#4A90E2] rounded-tl-lg"></div>
+                    <div className="absolute top-0 right-0 w-6 h-6 border-t-4 border-r-4 border-[#4A90E2] rounded-tr-lg"></div>
+                    <div className="absolute bottom-0 left-0 w-6 h-6 border-b-4 border-l-4 border-[#4A90E2] rounded-bl-lg"></div>
+                    <div className="absolute bottom-0 right-0 w-6 h-6 border-b-4 border-r-4 border-[#4A90E2] rounded-br-lg"></div>
+                    
+                    {/* Scanning line animation */}
+                    {isScanning && (
+                      <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-transparent via-[#4A90E2] to-transparent animate-pulse"></div>
+                    )}
+                  </div>
+                </div>
+                
+                {/* Status text */}
+                <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2">
+                  <div className="bg-black/70 backdrop-blur-sm text-white px-4 py-2 rounded-full text-sm font-medium">
+                    {isScanning ? "🎯 Scanning for codes..." : "📱 Ready to scan"}
+                  </div>
                 </div>
               </div>
-            )}
+            </div>
+            
+            {/* Camera Controls */}
+            <div className="p-4 space-y-3">
+              {typeof window !== 'undefined' && window.location.protocol !== 'https:' && window.location.hostname !== 'localhost' && (
+                <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+                  <p className="text-yellow-800 dark:text-yellow-200 text-sm">
+                    <AlertCircle className="h-4 w-4 inline mr-1" />
+                    Camera requires HTTPS. For mobile testing, use <code className="bg-yellow-100 dark:bg-yellow-800 px-1 rounded">https://</code> or localhost.
+                  </p>
+                </div>
+              )}
+              
+              <div className="flex gap-2">
+                {!isScanning ? (
+                  <Button
+                    color="primary"
+                    onClick={startCamera}
+                    startContent={<Camera className="h-4 w-4" />}
+                    className="flex-1 bg-[#003366] hover:bg-[#004488]"
+                  >
+                    Start Camera
+                  </Button>
+                ) : (
+                  <Button
+                    variant="flat"
+                    onClick={stopCamera}
+                    startContent={<X className="h-4 w-4" />}
+                    className="flex-1 bg-red-100 dark:bg-red-900 text-red-600 dark:text-red-400"
+                  >
+                    Stop Camera
+                  </Button>
+                )}
+                
+                <Button
+                  isIconOnly
+                  variant="flat"
+                  onClick={resetScan}
+                  title="Reset scan"
+                  className="bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300"
+                >
+                  <RotateCcw className="h-4 w-4" />
+                </Button>
+              </div>
+              
+              {hasPermission === false && (
+                <div className="text-center">
+                  <p className="text-red-600 dark:text-red-400 text-sm">
+                    Camera permission required to scan codes
+                  </p>
+                </div>
+              )}
+            </div>
           </CardBody>
         </Card>
 
