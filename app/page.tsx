@@ -6,6 +6,7 @@ import { Input } from "@heroui/input";
 import { Button } from "@heroui/button";
 import { Card, CardBody, CardHeader } from "@heroui/card";
 import { Select, SelectItem } from "@heroui/select";
+import { Mail, Eye, EyeOff, Lock } from "lucide-react";
 import { ThemeSwitch } from "@/components/ThemeSwitch";
 
 export default function SignupPage() {
@@ -17,6 +18,7 @@ export default function SignupPage() {
     const [message, setMessage] = useState("");
     const [emailError, setEmailError] = useState("");
     const [passwordError, setPasswordError] = useState("");
+    const [showPassword, setShowPassword] = useState(false);
 
     const validateEmail = (email: string) => {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -161,6 +163,9 @@ export default function SignupPage() {
                                         size="lg"
                                         isInvalid={!!emailError}
                                         errorMessage={emailError}
+                                        startContent={
+                                            <Mail className="w-5 h-5 text-[#003366] dark:text-[#4A90E2]" />
+                                        }
                                         classNames={{
                                             input: "text-sm sm:text-base py-3 lg:py-4 px-3 lg:px-4",
                                             inputWrapper: "h-12 sm:h-13 lg:h-14 border-2 border-gray-200 hover:border-[#003366] focus-within:border-[#003366] rounded-xl shadow-md hover:shadow-lg transition-all duration-200 bg-white dark:bg-gray-800 dark:border-gray-700"
@@ -173,7 +178,7 @@ export default function SignupPage() {
                                         Password
                                     </label>
                                     <Input 
-                                        type="password" 
+                                        type={showPassword ? "text" : "password"} 
                                         placeholder="Enter your Password"
                                         value={password} 
                                         onChange={handlePasswordChange} 
@@ -182,6 +187,22 @@ export default function SignupPage() {
                                         size="lg"
                                         isInvalid={!!passwordError}
                                         errorMessage={passwordError}
+                                        startContent={
+                                            <Lock className="w-5 h-5 text-[#003366] dark:text-[#4A90E2]" />
+                                        }
+                                        endContent={
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowPassword(!showPassword)}
+                                                className="focus:outline-none"
+                                            >
+                                                {showPassword ? (
+                                                    <EyeOff className="w-5 h-5 text-[#003366] dark:text-[#4A90E2] hover:text-[#004488] dark:hover:text-[#6BA3F0] transition-colors" />
+                                                ) : (
+                                                    <Eye className="w-5 h-5 text-[#003366] dark:text-[#4A90E2] hover:text-[#004488] dark:hover:text-[#6BA3F0] transition-colors" />
+                                                )}
+                                            </button>
+                                        }
                                         classNames={{
                                             input: "text-sm sm:text-base py-3 lg:py-4 px-3 lg:px-4",
                                             inputWrapper: "h-12 sm:h-13 lg:h-14 border-2 border-gray-200 hover:border-[#003366] focus-within:border-[#003366] rounded-xl shadow-md hover:shadow-lg transition-all duration-200 bg-white dark:bg-gray-800 dark:border-gray-700"
