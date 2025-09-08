@@ -84,17 +84,17 @@ const ScanQR = () => {
 
   const processScannedCode = (code: string) => {
     // Simulate product lookup (replace with actual API call)
-    const foundProduct = SAMPLE_PRODUCTS.find(p => 
-      p.id === code || 
+    const foundProduct = SAMPLE_PRODUCTS.find(p =>
+      p.id.toString() === code ||
       p.name.toLowerCase().includes(code.toLowerCase()) ||
       code === `PROD${p.id}`
     );
 
     if (foundProduct) {
       const product: ScannedProduct = {
-        id: foundProduct.id,
+        id: foundProduct.id.toString(),
         name: foundProduct.name,
-        price: foundProduct.price,
+        price: parseFloat(foundProduct.price.replace('$', '')),
         stock: foundProduct.stock,
         category: foundProduct.category?.name || "Unknown",
         barcode: code,
