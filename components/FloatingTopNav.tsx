@@ -67,7 +67,7 @@ export default function FloatingTopNav() {
 
   return (
     <div className="fixed top-4 right-4 z-40">
-      <Card className="bg-white/90 dark:bg-gray-900/90 backdrop-blur-md border border-gray-200/50 dark:border-gray-700/50 shadow-lg">
+      <Card className="bg-white/90 dark:bg-gray-900/90 backdrop-blur-md border border-gray-200/50 dark:border-gray-700/50 shadow-lg overflow-visible">
         <div className="flex items-center gap-1 p-2">
           {/* Dark Mode Toggle */}
           <div className="flex items-center justify-center w-8 h-8">

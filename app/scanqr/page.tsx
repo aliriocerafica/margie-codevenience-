@@ -42,10 +42,19 @@ const ScanQR = () => {
     };
   }, []);
 
+  // Effect to handle stream assignment when scanning state changes
+  useEffect(() => {
+    if (isScanning && streamRef.current && videoRef.current) {
+      videoRef.current.srcObject = streamRef.current;
+      videoRef.current.play().catch(e => {
+        console.error("useEffect: Video play failed:", e);
+      });
+    }
+  }, [isScanning]);
+
   const startCamera = async () => {
     try {
       setError("");
-      console.log("Starting camera...");
       
       // Check if getUserMedia is supported
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -64,22 +73,37 @@ const ScanQR = () => {
         }
       };
 
-      console.log("Requesting camera with constraints:", constraints);
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
-      console.log("Camera stream obtained:", stream);
 
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        streamRef.current = stream;
-        setHasPermission(true);
-        setIsScanning(true);
-        console.log("Camera started successfully");
-        
-        // Ensure video plays on iOS
-        videoRef.current.play().catch(e => {
-          console.error("Video play failed:", e);
-        });
-      }
+      // Store the stream first
+      streamRef.current = stream;
+      setHasPermission(true);
+      setIsScanning(true);
+      
+      // Wait for video element to be ready and assign stream
+      const assignStreamToVideo = () => {
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          
+          // Add essential error handling
+          videoRef.current.onerror = (e) => {
+            console.error("Video error:", e);
+            setError("Video display error. Please try again.");
+          };
+          
+          // Force video to play
+          videoRef.current.play().catch(e => {
+            console.error("Video play failed:", e);
+            setError("Could not start video playback. Please try again.");
+          });
+        } else {
+          // Retry after a short delay
+          setTimeout(assignStreamToVideo, 100);
+        }
+      };
+      
+      // Start the assignment process
+      assignStreamToVideo();
     } catch (err: any) {
       console.error("Camera access failed:", err);
       console.error("Error details:", {
@@ -116,7 +140,6 @@ const ScanQR = () => {
 
   const startCameraFallback = async () => {
     try {
-      console.log("Trying fallback camera constraints...");
       // Very basic constraints for maximum compatibility
       const stream = await navigator.mediaDevices.getUserMedia({
         video: true // Just request any camera
@@ -128,10 +151,11 @@ const ScanQR = () => {
         setHasPermission(true);
         setIsScanning(true);
         setError("");
-        console.log("Fallback camera started successfully");
         
+        // Force video to play for fallback too
         videoRef.current.play().catch(e => {
           console.error("Fallback video play failed:", e);
+          setError("Could not start video playback. Please try again.");
         });
       }
     } catch (err: any) {
@@ -234,7 +258,14 @@ const ScanQR = () => {
                   autoPlay
                   playsInline
                   muted
-                  className="w-full h-full object-cover"
+                  controls={false}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                    backgroundColor: '#000'
+                  }}
+                  className="w-full h-full object-cover bg-black"
                 />
               ) : (
                 <div className="w-full h-full bg-gradient-to-br from-gray-800 to-gray-900 flex items-center justify-center">
@@ -284,36 +315,39 @@ const ScanQR = () => {
                 </div>
               )}
               
-              <div className="flex gap-2">
-                {!isScanning ? (
+              <div className="space-y-2">
+                <div className="flex gap-2">
+                  {!isScanning ? (
+                    <Button
+                      color="primary"
+                      onClick={startCamera}
+                      startContent={<Camera className="h-4 w-4" />}
+                      className="flex-1 bg-[#003366] hover:bg-[#004488]"
+                    >
+                      Start Camera
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="flat"
+                      onClick={stopCamera}
+                      startContent={<X className="h-4 w-4" />}
+                      className="flex-1 bg-red-100 dark:bg-red-900 text-red-600 dark:text-red-400"
+                    >
+                      Stop Camera
+                    </Button>
+                  )}
+                  
                   <Button
-                    color="primary"
-                    onClick={startCamera}
-                    startContent={<Camera className="h-4 w-4" />}
-                    className="flex-1 bg-[#003366] hover:bg-[#004488]"
-                  >
-                    Start Camera
-                  </Button>
-                ) : (
-                  <Button
+                    isIconOnly
                     variant="flat"
-                    onClick={stopCamera}
-                    startContent={<X className="h-4 w-4" />}
-                    className="flex-1 bg-red-100 dark:bg-red-900 text-red-600 dark:text-red-400"
+                    onClick={resetScan}
+                    title="Reset scan"
+                    className="bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300"
                   >
-                    Stop Camera
+                    <RotateCcw className="h-4 w-4" />
                   </Button>
-                )}
+                </div>
                 
-                <Button
-                  isIconOnly
-                  variant="flat"
-                  onClick={resetScan}
-                  title="Reset scan"
-                  className="bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300"
-                >
-                  <RotateCcw className="h-4 w-4" />
-                </Button>
               </div>
               
               {error && (

@@ -30,7 +30,6 @@ import {
     Menu,
     X,
     User,
-    Bell,
     HelpCircle,
     ChevronLeft,
     ChevronRight,
@@ -44,6 +43,7 @@ import { ThemeSwitch } from "./ThemeSwitch";
 import { usePathname } from "next/navigation";
 import { useSearch } from "@/contexts/SearchContext";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
+import StockAlertSettings from "./StockAlertSettings";
 
 interface SidebarProps {
     children: React.ReactNode;
@@ -56,6 +56,7 @@ export default function Sidebar({ children }: SidebarProps) {
     const [localSearchQuery, setLocalSearchQuery] = useState("");
     const pathname = usePathname();
     const { openSearchModal } = useSearch();
+    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     
     // Enable keyboard shortcuts
     useKeyboardShortcuts();
@@ -101,17 +102,15 @@ export default function Sidebar({ children }: SidebarProps) {
 
     const utilityItems = [
         {
-            name: "Notifications",
-            icon: Bell,
-            hasNotification: true,
-        },
-        {
             name: "Settings",
             icon: Settings,
+            onClick: () => setIsSettingsOpen(true),
+            hasNotification: false,
         },
         {
             name: "Support",
             icon: HelpCircle,
+            hasNotification: false,
         },
     ];
 
@@ -224,6 +223,7 @@ export default function Sidebar({ children }: SidebarProps) {
                             return (
                                 <button
                                     key={item.name}
+                                    onClick={item.onClick}
                                     className={`group flex items-center px-3 py-3 text-sm font-medium rounded-lg transition-all duration-200 text-white/80 hover:bg-white/10 hover:text-white w-full ${
                                         isCollapsed ? 'justify-center' : ''
                                     }`}
@@ -408,6 +408,7 @@ export default function Sidebar({ children }: SidebarProps) {
                                 return (
                                     <button
                                         key={item.name}
+                                        onClick={item.onClick}
                                         className="group flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-all duration-200 text-white/80 hover:bg-white/10 hover:text-white w-full"
                                     >
                                         <div className="relative flex-shrink-0">
@@ -502,6 +503,12 @@ export default function Sidebar({ children }: SidebarProps) {
                     </div>
                 </main>
             </div>
+            
+            {/* Stock Alert Settings */}
+            <StockAlertSettings 
+                isOpen={isSettingsOpen} 
+                onClose={() => setIsSettingsOpen(false)} 
+            />
         </div>
     );
 }   
