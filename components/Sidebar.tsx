@@ -36,7 +36,8 @@ import {
     Grid3X3,
     Search,
     Tag,
-    ScanLine
+    ScanLine,
+    Barcode
 } from "lucide-react";
 import Link from "next/link";
 import { ThemeSwitch } from "./ThemeSwitch";
@@ -81,6 +82,11 @@ export default function Sidebar({ children }: SidebarProps) {
             name: "Scan QR",
             href: "/scanqr",
             icon: ScanLine,
+        },
+        {
+            name: "Scanned List",
+            href: "/ScannedList",
+            icon: Barcode,
         },
         {
             name: "Calendar",
