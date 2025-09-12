@@ -5,7 +5,7 @@ export const { handlers, signIn, signOut, auth, update } = NextAuth({
   providers: [
     CredentialsProvider({
       credentials: {
-        username: { label: "Username", type: "text" },
+        email: { label: "Email", type: "text" },
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
@@ -18,7 +18,7 @@ export const { handlers, signIn, signOut, auth, update } = NextAuth({
         if (!res.ok) return null;
 
         const user = await res.json();
-        return user ? { id: user.id, username: user.username, role: user.role } : null;
+        return user ? { id: user.id, email: user.email, role: user.role } : null;
       },
     }),
   ],
@@ -30,7 +30,7 @@ export const { handlers, signIn, signOut, auth, update } = NextAuth({
       return token;
     },
     async session({ session, token }) {
-      session.user = { id: token.id, username: token.username, role: token.role };
+      session.user = { id: token.id, email: token.email, role: token.role };
       return session;
     },
   },
