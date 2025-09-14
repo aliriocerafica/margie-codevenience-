@@ -7,7 +7,8 @@ export default auth((req) => {
   const user = req.auth?.user;
 
   // const url = "DEPLOYED URL";
-  const url = "http://localhost:3000";
+  // const url = "http://localhost:3000";
+  const url = "https://margie-codevenience.vercel.app/";
 
   const { pathname } = req.nextUrl;
 
