@@ -120,14 +120,39 @@ export default function Sidebar({ children }: SidebarProps) {
         },
     ];
 
-    const handleLogout = async () => {
-        setIsLoading(true);
-        // Simulate logout process
+  const handleLogout = async () => {
+    setIsLoading(true);
+    
+    try {
+        // Send request to logout endpoint
+        const response = await fetch('/api/auth/signout', {
+            method: 'POST', // Assuming it's a POST request
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            // If needed, you can send the body with any relevant data
+            // body: JSON.stringify({ token: userToken })
+        });
+
+        if (!response.ok) {
+            throw new Error('Logout failed');
+        }
+
+        // Simulate delay for visual loading state
         setTimeout(() => {
             setIsLoading(false);
-            // Add actual logout logic here
+            // After logout logic, redirect or clear user data here
+            // For example, redirect to login page
+            window.location.href = '/login'; // Adjust URL as necessary
         }, 2000);
-    };
+
+    } catch (error) {
+        console.error('Logout error:', error);
+        setIsLoading(false);
+        // Optionally, show an error message to the user
+    }
+};
+
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
