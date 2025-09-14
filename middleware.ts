@@ -7,7 +7,7 @@
 //   const isLoggedIn = !!req.auth;
 //   const user = req.auth?.user;
 
-//   // const url = "DEPLOYED URL";
+//   const url = "DEPLOYED URL";
 //   const url = "http://localhost:3000";
 
 //   const { pathname } = req.nextUrl;
