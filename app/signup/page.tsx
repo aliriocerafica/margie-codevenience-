@@ -49,13 +49,13 @@ export default function SignupPage() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        
+
         const emailValidation = validateEmail(email);
         const passwordValidation = validatePassword(password);
-        
+
         setEmailError(emailValidation);
         setPasswordError(passwordValidation);
-        
+
         if (emailValidation || passwordValidation) {
             return;
         }
@@ -73,8 +73,8 @@ export default function SignupPage() {
                 setMessage(data.error || "Something went wrong");
             } else {
                 setMessage("Signup successful! 🎉");
-                setEmail(""); 
-                setPassword(""); 
+                setEmail("");
+                setPassword("");
                 setRole("Staff");
                 setEmailError("");
                 setPasswordError("");
@@ -86,11 +86,6 @@ export default function SignupPage() {
         }
     };
 
-    // TEMP: quick navigation for testing
-    const handleQuickSignIn = () => {
-        router.push("/dashboard");
-    };
-
     return (
         <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-950 flex flex-col lg:flex-row relative">
             {/* Dark Mode Toggle - Top Right */}
@@ -98,7 +93,7 @@ export default function SignupPage() {
                 <ThemeSwitch />
             </div>
             {/* Mobile Header / Desktop Left Panel - Branding */}
-            <div 
+            <div
                 className="w-full lg:w-2/5 flex flex-col relative shadow-2xl px-4 py-8 lg:py-0 min-h-[200px] lg:min-h-screen"
                 style={{
                     backgroundImage: "url('/LoginBannerBG.png')",
@@ -113,7 +108,7 @@ export default function SignupPage() {
                     <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-2 lg:mb-4 drop-shadow-lg font-poppins">
                         Margie CodeVenience
                     </h1>
-                    
+
                     {/* Tagline with colored dots */}
                     <div className="flex items-center justify-center gap-2 text-sm sm:text-base font-medium text-white drop-shadow-sm font-poppins mb-6">
                         <span>Scan</span>
@@ -123,12 +118,12 @@ export default function SignupPage() {
                         <span>Control</span>
                         <div className="w-2 h-2 bg-white rounded-full"></div>
                     </div>
-                    
+
                     {/* White Logo - Bigger */}
                     <div className="flex justify-center">
-                        <img 
-                            src="/LogoWhite.png" 
-                            alt="Margie CodeVenience Logo" 
+                        <img
+                            src="/LogoWhite.png"
+                            alt="Margie CodeVenience Logo"
                             className="w-24 h-24 sm:w-32 sm:h-32 lg:w-40 lg:h-40 object-contain"
                         />
                     </div>
@@ -146,20 +141,20 @@ export default function SignupPage() {
                                 <p className="text-gray-600 dark:text-gray-400 text-sm sm:text-base">Sign in to your account</p>
                             </div>
                         </CardHeader>
-                        
+
                         <CardBody className="px-4 sm:px-6 lg:px-8 pb-6 lg:pb-8">
                             <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6 lg:space-y-8">
                                 <div>
                                     <label className="block text-sm sm:text-base font-semibold text-gray-700 dark:text-gray-300 mb-2 lg:mb-3">
                                         Email Address
                                     </label>
-                                    <Input 
-                                        type="email" 
+                                    <Input
+                                        type="email"
                                         placeholder="joe@email.com"
-                                        value={email} 
-                                        onChange={handleEmailChange} 
-                                        isRequired 
-                                        fullWidth 
+                                        value={email}
+                                        onChange={handleEmailChange}
+                                        isRequired
+                                        fullWidth
                                         size="lg"
                                         isInvalid={!!emailError}
                                         errorMessage={emailError}
@@ -172,18 +167,18 @@ export default function SignupPage() {
                                         }}
                                     />
                                 </div>
-                                
+
                                 <div>
                                     <label className="block text-sm sm:text-base font-semibold text-gray-700 dark:text-gray-300 mb-2 lg:mb-3">
                                         Password
                                     </label>
-                                    <Input 
-                                        type={showPassword ? "text" : "password"} 
+                                    <Input
+                                        type={showPassword ? "text" : "password"}
                                         placeholder="Enter your Password"
-                                        value={password} 
-                                        onChange={handlePasswordChange} 
-                                        isRequired 
-                                        fullWidth 
+                                        value={password}
+                                        onChange={handlePasswordChange}
+                                        isRequired
+                                        fullWidth
                                         size="lg"
                                         isInvalid={!!passwordError}
                                         errorMessage={passwordError}
@@ -209,14 +204,14 @@ export default function SignupPage() {
                                         }}
                                     />
                                 </div>
-                                
+
                                 <div>
                                     <label className="block text-sm sm:text-base font-semibold text-gray-700 dark:text-gray-300 mb-2 lg:mb-3">
                                         Role
                                     </label>
-                                    <Select 
+                                    <Select
                                         placeholder="Select your role"
-                                        selectedKeys={[role]} 
+                                        selectedKeys={[role]}
                                         onSelectionChange={(keys) => setRole(Array.from(keys)[0] as string)}
                                         size="lg"
                                         classNames={{
@@ -228,25 +223,23 @@ export default function SignupPage() {
                                         <SelectItem key="Staff">Staff</SelectItem>
                                     </Select>
                                 </div>
-                                
-                                <Button 
-                                    type="button" 
-                                    fullWidth 
+
+                                <Button
+                                    type="submit"
+                                    fullWidth
                                     size="lg"
                                     isLoading={loading}
-                                    onPress={handleQuickSignIn}
                                     className="h-12 sm:h-13 lg:h-14 text-sm sm:text-base font-semibold bg-gradient-to-r from-[#003366] to-[#004488] hover:from-[#002244] hover:to-[#003366] text-white rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
                                     disabled={loading || !!emailError || !!passwordError}
                                 >
                                     {loading ? "Creating Account..." : "Sign In"}
                                 </Button>
-                                
+
                                 {message && (
-                                    <div className={`text-center text-sm sm:text-base p-3 lg:p-4 rounded-xl shadow-md ${
-                                        message.includes("successful") 
-                                            ? "bg-gradient-to-r from-green-50 to-emerald-50 text-green-700 border-2 border-green-200" 
-                                            : "bg-gradient-to-r from-red-50 to-rose-50 text-red-700 border-2 border-red-200"
-                                    }`}>
+                                    <div className={`text-center text-sm sm:text-base p-3 lg:p-4 rounded-xl shadow-md ${message.includes("successful")
+                                        ? "bg-gradient-to-r from-green-50 to-emerald-50 text-green-700 border-2 border-green-200"
+                                        : "bg-gradient-to-r from-red-50 to-rose-50 text-red-700 border-2 border-red-200"
+                                        }`}>
                                         {message}
                                     </div>
                                 )}
