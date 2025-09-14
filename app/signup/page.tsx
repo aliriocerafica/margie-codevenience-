@@ -137,8 +137,8 @@ export default function SignupPage() {
                     <Card className="shadow-xl lg:shadow-2xl border-0 bg-white/95 dark:bg-gray-900/90 backdrop-blur-sm">
                         <CardHeader className="pb-4 lg:pb-6 pt-6 lg:pt-8 px-4 sm:px-6 lg:px-8">
                             <div className="w-full text-center">
-                                <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 dark:text-gray-100 mb-2 lg:mb-3">Welcome Back</h2>
-                                <p className="text-gray-600 dark:text-gray-400 text-sm sm:text-base">Sign in to your account</p>
+                                <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 dark:text-gray-100 mb-2 lg:mb-3">Create Account</h2>
+                                <p className="text-gray-600 dark:text-gray-400 text-sm sm:text-base">Sign up for a new account</p>
                             </div>
                         </CardHeader>
 
@@ -232,7 +232,7 @@ export default function SignupPage() {
                                     className="h-12 sm:h-13 lg:h-14 text-sm sm:text-base font-semibold bg-gradient-to-r from-[#003366] to-[#004488] hover:from-[#002244] hover:to-[#003366] text-white rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
                                     disabled={loading || !!emailError || !!passwordError}
                                 >
-                                    {loading ? "Creating Account..." : "Sign In"}
+                                    {loading ? "Creating Account..." : "Sign Up"}
                                 </Button>
 
                                 {message && (
@@ -244,12 +244,12 @@ export default function SignupPage() {
                                     </div>
                                 )}
 
-                                {/* Sign up link */}
+                                {/* Login link */}
                                 <div className="text-center pt-4">
                                     <p className="text-gray-600 text-sm">
-                                        Don't have an account?{" "}
-                                        <a href="/signup" className="text-[#003366] hover:text-[#004488] font-semibold hover:underline transition-colors">
-                                            Sign up here
+                                        Already have an account?{" "}
+                                        <a href="/" className="text-[#003366] hover:text-[#004488] font-semibold hover:underline transition-colors">
+                                            Login here
                                         </a>
                                     </p>
                                 </div>
