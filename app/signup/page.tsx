@@ -13,7 +13,7 @@ export default function SignupPage() {
     const router = useRouter();
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
-    const [role, setRole] = useState("Staff");
+    const [role, setRole] = useState("Admin");
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState("");
     const [emailError, setEmailError] = useState("");
@@ -75,7 +75,7 @@ export default function SignupPage() {
                 setMessage("Signup successful! 🎉");
                 setEmail("");
                 setPassword("");
-                setRole("Staff");
+                setRole("Admin");
                 setEmailError("");
                 setPasswordError("");
             }

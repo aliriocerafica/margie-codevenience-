@@ -41,10 +41,11 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { ThemeSwitch } from "./ThemeSwitch";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useSearch } from "@/contexts/SearchContext";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import StockAlertSettings from "./StockAlertSettings";
+import { signOut } from "next-auth/react";
 
 interface SidebarProps {
     children: React.ReactNode;
@@ -56,6 +57,7 @@ export default function Sidebar({ children }: SidebarProps) {
     const [isLoading, setIsLoading] = useState(false);
     const [localSearchQuery, setLocalSearchQuery] = useState("");
     const pathname = usePathname();
+    const router = useRouter();
     const { openSearchModal } = useSearch();
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     
@@ -77,6 +79,11 @@ export default function Sidebar({ children }: SidebarProps) {
             name: "Categories",
             href: "/category",
             icon: Tag,
+        },
+        {
+            name: "Users",
+            href: "/users",
+            icon: User,
         },
         {
             name: "Scan QR",
@@ -120,38 +127,33 @@ export default function Sidebar({ children }: SidebarProps) {
         },
     ];
 
-  const handleLogout = async () => {
-    setIsLoading(true);
-    
-    try {
-        // Send request to logout endpoint
-        const response = await fetch('/api/auth/signout', {
-            method: 'POST', // Assuming it's a POST request
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            // If needed, you can send the body with any relevant data
-            // body: JSON.stringify({ token: userToken })
-        });
-
-        if (!response.ok) {
-            throw new Error('Logout failed');
-        }
-
-        // Simulate delay for visual loading state
-        setTimeout(() => {
+    const handleLogout = async () => {
+        setIsLoading(true);
+        
+        try {
+            // Clear remember me data from localStorage
+            localStorage.removeItem('rememberMe');
+            localStorage.removeItem('rememberedEmail');
+            
+            // Use NextAuth signOut function
+            await signOut({ 
+                redirect: false // Don't auto-redirect, we'll handle it manually
+            });
+            
+            // Small delay for visual feedback
+            setTimeout(() => {
+                setIsLoading(false);
+                // Redirect to login page
+                router.push('/');
+            }, 1000);
+            
+        } catch (error) {
+            console.error('Logout error:', error);
             setIsLoading(false);
-            // After logout logic, redirect or clear user data here
-            // For example, redirect to login page
-            window.location.href = '/login'; // Adjust URL as necessary
-        }, 2000);
-
-    } catch (error) {
-        console.error('Logout error:', error);
-        setIsLoading(false);
-        // Optionally, show an error message to the user
-    }
-};
+            // Fallback redirect even if signOut fails
+            router.push('/');
+        }
+    };
 
 
     const handleSearch = (e: React.FormEvent) => {
@@ -293,7 +295,11 @@ export default function Sidebar({ children }: SidebarProps) {
                                         </Button>
                                     </DropdownTrigger>
                                     <DropdownMenu aria-label="User menu">
-                                        <DropdownItem key="profile" startContent={<User className="h-4 w-4" />}>
+                                        <DropdownItem 
+                                            key="profile" 
+                                            startContent={<User className="h-4 w-4" />}
+                                            onPress={() => router.push("/profile")}
+                                        >
                                             Profile
                                         </DropdownItem>
                                         <DropdownItem key="settings" startContent={<Settings className="h-4 w-4" />}>
@@ -333,7 +339,11 @@ export default function Sidebar({ children }: SidebarProps) {
                                     </Button>
                                 </DropdownTrigger>
                                 <DropdownMenu aria-label="User menu">
-                                    <DropdownItem key="profile" startContent={<User className="h-4 w-4" />}>
+                                    <DropdownItem 
+                                        key="profile" 
+                                        startContent={<User className="h-4 w-4" />}
+                                        onPress={() => router.push("/profile")}
+                                    >
                                         Profile
                                     </DropdownItem>
                                     <DropdownItem key="settings" startContent={<Settings className="h-4 w-4" />}>
@@ -477,7 +487,11 @@ export default function Sidebar({ children }: SidebarProps) {
                                     </Button>
                                 </DropdownTrigger>
                                 <DropdownMenu aria-label="User menu">
-                                    <DropdownItem key="profile" startContent={<User className="h-4 w-4" />}>
+                                    <DropdownItem 
+                                        key="profile" 
+                                        startContent={<User className="h-4 w-4" />}
+                                        onPress={() => router.push("/profile")}
+                                    >
                                         Profile
                                     </DropdownItem>
                                     <DropdownItem key="settings" startContent={<Settings className="h-4 w-4" />}>

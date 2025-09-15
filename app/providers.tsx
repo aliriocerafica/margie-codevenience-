@@ -6,6 +6,7 @@ import * as React from "react";
 import { HeroUIProvider } from "@heroui/system";
 import { useRouter } from "next/navigation";
 import { ThemeProvider as NextThemesProvider } from "next-themes";
+import { SessionProvider } from "next-auth/react";
 import { SearchProvider } from "@/contexts/SearchContext";
 import { NotificationProvider } from "@/contexts/NotificationContext";
 
@@ -26,14 +27,16 @@ export function Providers({ children, themeProps }: ProvidersProps) {
   const router = useRouter();
 
   return (
-    <HeroUIProvider navigate={router.push}>
-      <NextThemesProvider {...themeProps}>
-        <SearchProvider>
-          <NotificationProvider>
-            {children}
-          </NotificationProvider>
-        </SearchProvider>
-      </NextThemesProvider>
-    </HeroUIProvider>
+    <SessionProvider>
+      <HeroUIProvider navigate={router.push}>
+        <NextThemesProvider {...themeProps}>
+          <SearchProvider>
+            <NotificationProvider>
+              {children}
+            </NotificationProvider>
+          </SearchProvider>
+        </NextThemesProvider>
+      </HeroUIProvider>
+    </SessionProvider>
   );
 }

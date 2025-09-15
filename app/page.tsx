@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Input } from "@heroui/input";
 import { Button } from "@heroui/button";
 import { Card, CardBody, CardHeader } from "@heroui/card";
+import { Checkbox } from "@heroui/checkbox";
 import { Mail, Eye, EyeOff, Lock } from "lucide-react";
 import { ThemeSwitch } from "@/components/ThemeSwitch";
 import { signIn } from "next-auth/react";
@@ -18,6 +19,18 @@ export default function SignupPage() {
     const [emailError, setEmailError] = useState("");
     const [passwordError, setPasswordError] = useState("");
     const [showPassword, setShowPassword] = useState(false);
+    const [rememberMe, setRememberMe] = useState(false);
+
+    // Load remembered email on component mount
+    useEffect(() => {
+        const remembered = localStorage.getItem('rememberMe');
+        const rememberedEmail = localStorage.getItem('rememberedEmail');
+        
+        if (remembered === 'true' && rememberedEmail) {
+            setRememberMe(true);
+            setEmail(rememberedEmail);
+        }
+    }, []);
 
     const validateEmail = (email: string) => {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -49,7 +62,19 @@ export default function SignupPage() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        
+        const emailValidation = validateEmail(email);
+        const passwordValidation = validatePassword(password);
+
+        setEmailError(emailValidation);
+        setPasswordError(passwordValidation);
+
+        if (emailValidation || passwordValidation) {
+            return;
+        }
+
         setLoading(true);
+        setMessage("");
 
         const result = await signIn("credentials", {
             redirect: false,
@@ -62,6 +87,15 @@ export default function SignupPage() {
         if (result?.error) {
             setMessage("Invalid credentials");
             return;
+        }
+
+        // Store remember me preference in localStorage
+        if (rememberMe) {
+            localStorage.setItem('rememberMe', 'true');
+            localStorage.setItem('rememberedEmail', email);
+        } else {
+            localStorage.removeItem('rememberMe');
+            localStorage.removeItem('rememberedEmail');
         }
 
         // ✅ Auth.js now sets the JWT session cookie
@@ -189,6 +223,30 @@ export default function SignupPage() {
                                     />
                                 </div>
 
+                                {/* Remember Me and Forgot Password */}
+                                <div className="flex items-center justify-between gap-4">
+                                    <Checkbox
+                                        isSelected={rememberMe}
+                                        onValueChange={setRememberMe}
+                                        size="sm"
+                                        classNames={{
+                                            base: "inline-flex bg-transparent",
+                                            wrapper: "before:border-gray-300 dark:before:border-gray-600",
+                                            label: "text-sm text-gray-600 dark:text-gray-400",
+                                        }}
+                                    >
+                                        Remember me
+                                    </Checkbox>
+                                    
+                                    <button
+                                        type="button"
+                                        onClick={() => router.push("/forgot-password")}
+                                        className="text-sm text-[#003366] hover:text-[#004488] dark:text-[#4A90E2] dark:hover:text-[#6BA3F0] font-medium hover:underline transition-colors whitespace-nowrap"
+                                    >
+                                        Forgot Password?
+                                    </button>
+                                </div>
+
                                 <Button
                                     type="submit"
                                     fullWidth
@@ -226,8 +284,4 @@ export default function SignupPage() {
             </div>
         </div>
     );
-}
-
-function setError(arg0: string) {
-    throw new Error('Function not implemented.');
 }

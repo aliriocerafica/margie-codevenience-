@@ -53,15 +53,17 @@ export const ScannerBar: React.FC<ScannerBarProps> = ({ value, onChange, onScan,
                     Search
                 </Button>
             )}
-            <Button
-                size="lg"
-                variant="flat"
-                className="h-12 rounded-xl"
-                onPress={onClear}
-                startContent={<Trash2 className="w-4 h-4" />}
-            >
-                Clear
-            </Button>
+            {onClear && (
+                <Button
+                    size="lg"
+                    variant="flat"
+                    className="h-12 rounded-xl"
+                    onPress={onClear}
+                    startContent={<Trash2 className="w-4 h-4" />}
+                >
+                    Clear
+                </Button>
+            )}
         </div>
     );
 };
