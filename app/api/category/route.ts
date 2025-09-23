@@ -2,7 +2,24 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 export async function GET() {
-  return NextResponse.json(await prisma.category.findMany());
+  const categories = await prisma.category.findMany({
+    include: {
+      _count: { select: { products: true } },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  // Map to include productCount and a default status for UI
+  const payload = categories.map((c: any) => ({
+    id: c.id,
+    name: c.name,
+    createdAt: c.createdAt,
+    updatedAt: c.updatedAt,
+    productCount: c._count?.products ?? 0,
+    status: "active",
+  }));
+
+  return NextResponse.json(payload);
 }
 
 export async function POST(req: Request) {

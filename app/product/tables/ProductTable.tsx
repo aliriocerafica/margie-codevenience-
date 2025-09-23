@@ -5,25 +5,38 @@ import { Chip } from "@heroui/react";
 import DataTable from "@/components/DataTable";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { formatCurrency, PRODUCT_STATUS_COLORS, PRODUCT_STATUS_OPTIONS } from "@/lib/constants";
-import type { Product } from "@/types";
+import type { Product as SampleProduct } from "@/types";
+
+// Accept both sample Product and backend Product shape
+export type ProductRow = SampleProduct | {
+  id: string;
+  name: string;
+  price: string | number;
+  stock: string | number;
+  status?: string;
+  imageUrl?: string | null;
+  image?: string | null;
+  description?: string | null;
+  category?: { name?: string | null } | null;
+};
 
 interface ProductTableProps {
-  data: Product[] | undefined;
+  data: ProductRow[] | undefined;
   isLoading?: boolean;
   error?: any;
 }
 
 export const ProductTable: React.FC<ProductTableProps> = ({ data, isLoading, error }) => {
   const columns = [
-    { key: "id", header: "ID" },
+    { key: "id", header: "#", renderCell: (_row: ProductRow, index?: number) => index ?? "" },
     {
       key: "image",
       header: "Image",
-      renderCell: (row: Product) => (
+      renderCell: (row: ProductRow) => (
         <div className="flex items-center">
           <img 
-            src={row.image} 
-            alt={row.name} 
+            src={(row as any).image || (row as any).imageUrl || "https://via.placeholder.com/48"} 
+            alt={(row as any).name} 
             className="w-12 h-12 rounded-md object-cover border border-gray-200 dark:border-gray-700" 
           />
         </div>
@@ -32,12 +45,12 @@ export const ProductTable: React.FC<ProductTableProps> = ({ data, isLoading, err
     { 
       key: "name", 
       header: "Product Name",
-      renderCell: (row: Product) => (
+      renderCell: (row: ProductRow) => (
         <div>
-          <p className="font-medium text-gray-900 dark:text-white">{row.name}</p>
-          {row.description && (
+          <p className="font-medium text-gray-900 dark:text-white">{(row as any).name}</p>
+          {(row as any).description && (
             <p className="text-sm text-gray-500 dark:text-gray-400 truncate max-w-xs">
-              {row.description}
+              {(row as any).description}
             </p>
           )}
         </div>
@@ -46,49 +59,53 @@ export const ProductTable: React.FC<ProductTableProps> = ({ data, isLoading, err
     { 
       key: "category", 
       header: "Category",
-      renderCell: (row: Product) => (
+      renderCell: (row: ProductRow) => (
         <Chip 
           variant="flat" 
           color="primary" 
           size="sm"
           className="bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300"
         >
-          {row.category?.name}
+          {(row as any).category?.name || "—"}
         </Chip>
       )
     },
     { 
       key: "price", 
       header: "Price",
-      renderCell: (row: Product) => (
+      renderCell: (row: ProductRow) => (
         <span className="font-semibold text-gray-900 dark:text-white">
-          {formatCurrency(row.price)}
+          {formatCurrency((row as any).price)}
         </span>
       )
     },
     { 
       key: "stock", 
       header: "Stock",
-      renderCell: (row: Product) => (
-        <div className="text-center">
-          <span className={`font-medium ${
-            row.stock === 0 
-              ? "text-red-600 dark:text-red-400" 
-              : row.stock <= 10 
-                ? "text-yellow-600 dark:text-yellow-400"
-                : "text-green-600 dark:text-green-400"
-          }`}>
-            {row.stock}
-          </span>
-        </div>
-      )
+      renderCell: (row: ProductRow) => {
+        const stockValue = (row as any).stock;
+        const stockNum = typeof stockValue === "string" ? parseInt(stockValue, 10) : stockValue ?? 0;
+        return (
+          <div className="text-center">
+            <span className={`font-medium ${
+              stockNum === 0 
+                ? "text-red-600 dark:text-red-400" 
+                : stockNum <= 10 
+                  ? "text-yellow-600 dark:text-yellow-400"
+                  : "text-green-600 dark:text-green-400"
+            }`}>
+              {Number.isFinite(stockNum) ? stockNum : 0}
+            </span>
+          </div>
+        );
+      }
     },
     {
       key: "status",
       header: "Status",
-      renderCell: (row: Product) => (
+      renderCell: (row: ProductRow) => (
         <StatusChip 
-          status={row.status} 
+          status={(row as any).status} 
           colorMap={PRODUCT_STATUS_COLORS}
           variant="flat"
           size="sm"

@@ -14,7 +14,7 @@ interface CategoryTableProps {
 
 export const CategoryTable: React.FC<CategoryTableProps> = ({ data, isLoading, error }) => {
   const columns = [
-    { key: "id", header: "ID" },
+    { key: "id", header: "#", renderCell: (_row: Category, index?: number) => index ?? "" },
     { 
       key: "name", 
       header: "Category Name",

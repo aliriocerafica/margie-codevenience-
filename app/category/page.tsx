@@ -9,12 +9,12 @@ import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 import { ErrorMessage } from "@/components/ui/ErrorMessage";
 import { StatCard } from "@/components/ui/StatCard";
 import { CategoryTable } from "./tables/CategoryTable";
-import { SAMPLE_CATEGORIES, LOADING_MESSAGES, ERROR_MESSAGES } from "@/lib/constants";
+import { LOADING_MESSAGES, ERROR_MESSAGES } from "@/lib/constants";
 
 const fetcher = (url: string) => fetch(url).then(res => res.json());
 
 const Category = () => {
-    const [useBackendData, setUseBackendData] = useState(false);
+    const [useBackendData] = useState(true);
     const { data, error, isLoading, mutate } = useSWR(
         useBackendData ? `/api/category` : null, 
         fetcher
@@ -23,20 +23,16 @@ const Category = () => {
     // Enable page highlighting for search results
     usePageHighlight();
 
-    // Use sample data if not using backend data
-    const categoryData = useBackendData ? data : SAMPLE_CATEGORIES;
-    const currentError = useBackendData ? error : null;
-    const currentLoading = useBackendData ? isLoading : false;
+    const categoryData = data;
+    const currentError = error;
+    const currentLoading = isLoading;
 
     const handleAddCategory = () => {
         console.log("Add new category");
-        // TODO: Navigate to add category page or open modal
     };
 
     const handleRetry = () => {
-        if (useBackendData) {
-            mutate();
-        }
+        mutate();
     };
 
     // Calculate stats

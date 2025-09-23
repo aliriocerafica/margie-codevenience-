@@ -23,7 +23,7 @@ import { ChevronDown, Search } from "lucide-react";
 interface Column {
     key: string;
     header: string;
-    renderCell?: (row: any) => React.ReactNode;
+    renderCell?: (row: any, displayIndex?: number) => React.ReactNode;
 }
 
 interface StatusOption {
@@ -212,7 +212,7 @@ const DataTable = ({
                                         .map((column) => (
                                             <TableCell key={column.key}>
                                                 {column.renderCell
-                                                    ? column.renderCell(item)
+                                                    ? column.renderCell(item, (currentPage - 1) * rowsPerPage + index + 1)
                                                     : item[column.key]}
                                             </TableCell>
                                         ))}

@@ -9,12 +9,12 @@ import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 import { ErrorMessage } from "@/components/ui/ErrorMessage";
 import { StatCard } from "@/components/ui/StatCard";
 import { ProductTable } from "./tables/ProductTable";
-import { SAMPLE_PRODUCTS, LOADING_MESSAGES, ERROR_MESSAGES } from "@/lib/constants";
+import { LOADING_MESSAGES, ERROR_MESSAGES } from "@/lib/constants";
 
 const fetcher = (url: string) => fetch(url).then(res => res.json());
 
 const Product = () => {
-    const [useBackendData, setUseBackendData] = useState(false);
+    const [useBackendData] = useState(true);
     const { data, error, isLoading, mutate } = useSWR(
         useBackendData ? `/api/product` : null, 
         fetcher
@@ -23,25 +23,20 @@ const Product = () => {
     // Enable page highlighting for search results
     usePageHighlight();
 
-    // Use sample data if not using backend data
-    const productData = useBackendData ? data : SAMPLE_PRODUCTS;
-    const currentError = useBackendData ? error : null;
-    const currentLoading = useBackendData ? isLoading : false;
+    const productData = data;
+    const currentError = error;
+    const currentLoading = isLoading;
 
     const handleAddProduct = () => {
         console.log("Add new product");
-        // TODO: Navigate to add product page or open modal
     };
 
     const handleExportData = () => {
         console.log("Export product data");
-        // TODO: Implement export functionality
     };
 
     const handleRetry = () => {
-        if (useBackendData) {
-            mutate();
-        }
+        mutate();
     };
 
     if (currentLoading) {
