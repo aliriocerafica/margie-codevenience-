@@ -39,11 +39,31 @@ export default function POSPage() {
         return () => { isMounted = false; };
     }, []);
 
+    const addOrIncrementBy = (p: { id: string; name: string; barcode: string; price: string | number; status?: string }) => {
+        setItems(prev => {
+            const existing = prev.find(i => i.id === String(p.id));
+            if (existing) {
+                return prev.map(i => i.id === existing.id ? { ...i, quantity: i.quantity + 1 } : i);
+            }
+            return [
+                ...prev,
+                {
+                    id: String(p.id),
+                    name: p.name,
+                    barcode: p.barcode,
+                    price: p.price,
+                    quantity: 1,
+                    status: (p.status ?? "available") as any,
+                }
+            ];
+        });
+    };
+
     const handleScan = () => {
         const q = query.trim().toLowerCase();
         if (!q) return;
 
-        const found = SAMPLE_PRODUCTS.find(p => 
+        const found = SAMPLE_PRODUCTS.find(p =>
             p.id.toString() === q ||
             p.name.toLowerCase().includes(q) ||
             p.category.name.toLowerCase().includes(q)
@@ -54,23 +74,84 @@ export default function POSPage() {
             return;
         }
 
+        addOrIncrementBy({
+            id: String(found.id),
+            name: found.name,
+            barcode: found.id.toString().padStart(12, "0"),
+            price: found.price,
+            status: found.status as any,
+        });
+        setQuery("");
+    };
+
+    const handleSelect = (p: { id: string; name: string; barcode?: string; price: string | number; status?: string }) => {
         setItems(prev => {
-            const existing = prev.find(i => i.id === String(found.id));
+            const existing = prev.find(i => i.id === String(p.id));
             if (existing) {
                 return prev.map(i => i.id === existing.id ? { ...i, quantity: i.quantity + 1 } : i);
             }
             return [
                 ...prev,
                 {
-                    id: String(found.id),
-                    name: found.name,
-                    barcode: found.id.toString().padStart(12, "0"),
-                    price: found.price,
+                    id: String(p.id),
+                    name: p.name,
+                    barcode: p.barcode ?? String(p.id).padStart(12, "0"),
+                    price: p.price,
                     quantity: 1,
-                    status: found.status as any,
+                    status: (p.status ?? "available") as any,
                 }
             ];
         });
+        setQuery("");
+    };
+
+    const handleSearch = async () => {
+        const q = query.trim().toLowerCase();
+        if (!q) return;
+        try {
+            const res = await fetch("/api/product");
+            if (!res.ok) throw new Error("Failed to fetch products");
+            const data = await res.json();
+            if (!Array.isArray(data)) throw new Error("Invalid products response");
+
+            const match = data.find((p: any) => {
+                const idStr = String(p.id).toLowerCase();
+                const nameStr = String(p.name ?? "").toLowerCase();
+                const categoryStr = String(p.category?.name ?? "").toLowerCase();
+                const barcodeStr = String(p.barcode ?? idStr).toLowerCase();
+                return idStr === q || barcodeStr === q || nameStr.includes(q) || categoryStr.includes(q);
+            });
+
+            if (match) {
+                addOrIncrementBy({
+                    id: String(match.id),
+                    name: match.name,
+                    barcode: match.barcode ?? String(match.id).padStart(12, "0"),
+                    price: match.price,
+                    status: match.status,
+                });
+                setQuery("");
+                return;
+            }
+        } catch (_) {
+            // fall through to local sample search
+        }
+
+        // Fallback to sample list if API search fails or no match
+        const local = SAMPLE_PRODUCTS.find(p =>
+            p.id.toString() === q ||
+            p.name.toLowerCase().includes(q) ||
+            p.category.name.toLowerCase().includes(q)
+        );
+        if (local) {
+            addOrIncrementBy({
+                id: String(local.id),
+                name: local.name,
+                barcode: local.id.toString().padStart(12, "0"),
+                price: local.price,
+                status: local.status as any,
+            });
+        }
         setQuery("");
     };
 
@@ -81,17 +162,18 @@ export default function POSPage() {
 
     return (
         <div className="space-y-6">
-            <PageHeader 
+            <PageHeader
                 title="Scanned List of Products"
                 description="Scan products and generate receipt in real-time."
             />
 
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
                 <div className="xl:col-span-2">
-                    <ScanPanel 
+                    <ScanPanel
                         query={query}
                         onQueryChange={setQuery}
                         onScan={handleScan}
+                        onSelect={handleSelect}
                         items={items}
                         onIncrease={handleIncrease}
                         onDecrease={handleDecrease}

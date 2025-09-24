@@ -21,8 +21,15 @@ export type ScannedProductsTableProps = {
 };
 
 export const ScannedProductsTable: React.FC<ScannedProductsTableProps> = ({ items, onIncrease, onDecrease, onRemove }) => {
+    const toNumber = (value: string | number): number => {
+        if (typeof value === "number") return value;
+        const cleaned = value.replace(/[^0-9.]/g, "");
+        const num = parseFloat(cleaned);
+        return Number.isFinite(num) ? num : 0;
+    };
+
     const getLineTotal = (price: string | number, qty: number) => {
-        const unit = typeof price === "string" ? parseFloat(price) : price;
+        const unit = toNumber(price);
         return unit * qty;
     };
 
@@ -53,7 +60,9 @@ export const ScannedProductsTable: React.FC<ScannedProductsTableProps> = ({ item
                         <tr key={item.id}>
                             <td className="px-4 py-3 text-sm font-medium">{item.name}</td>
                             <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{item.barcode}</td>
-                            <td className="px-4 py-3 text-sm text-right">{formatCurrency(item.price)}</td>
+                            <td className="px-4 py-3 text-sm text-right">
+                                {typeof item.price === "string" ? item.price : formatCurrency(item.price)}
+                            </td>
                             <td className="px-4 py-3">
                                 <div className="flex items-center justify-center gap-2">
                                     <button

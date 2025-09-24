@@ -73,11 +73,16 @@ export const ProductTable: React.FC<ProductTableProps> = ({ data, isLoading, err
     { 
       key: "price", 
       header: "Price",
-      renderCell: (row: ProductRow) => (
-        <span className="font-semibold text-gray-900 dark:text-white">
-          {formatCurrency((row as any).price)}
-        </span>
-      )
+      renderCell: (row: ProductRow) => {
+        const price = (row as any).price;
+        // Show exact MongoDB value when it is a string; only format numeric values
+        const display = typeof price === "string" ? price : formatCurrency(price);
+        return (
+          <span className="font-semibold text-gray-900 dark:text-white">
+            {display}
+          </span>
+        );
+      }
     },
     { 
       key: "stock", 

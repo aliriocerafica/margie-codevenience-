@@ -14,9 +14,16 @@ export const ReceiptPanel: React.FC<ReceiptPanelProps> = ({ items, onClearItems 
     const [discount, setDiscount] = useState<number>(0);
     const [taxRate, setTaxRate] = useState<number>(12);
 
+    const toNumber = (value: string | number): number => {
+        if (typeof value === "number") return value;
+        const cleaned = value.replace(/[^0-9.]/g, "");
+        const num = parseFloat(cleaned);
+        return Number.isFinite(num) ? num : 0;
+    };
+
     const subtotal = useMemo(() => {
         return items.reduce((sum, item) => {
-            const unit = typeof item.price === "string" ? parseFloat(item.price) : item.price;
+            const unit = toNumber(item.price);
             return sum + unit * item.quantity;
         }, 0);
     }, [items]);
@@ -33,7 +40,7 @@ export const ReceiptPanel: React.FC<ReceiptPanelProps> = ({ items, onClearItems 
             items: items.map((i) => ({
                 name: i.name,
                 barcode: i.barcode,
-                price: typeof i.price === "string" ? parseFloat(i.price) : i.price,
+                price: toNumber(i.price),
                 quantity: i.quantity,
             })),
             subtotal,
