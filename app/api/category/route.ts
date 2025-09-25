@@ -46,3 +46,26 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ error: "Failed to update category" }, { status: 500 });
   }
 }
+
+export async function DELETE(req: Request) {
+  try {
+    // Support id in query string or JSON body
+    const url = new URL(req.url);
+    let id = url.searchParams.get("id");
+    if (!id) {
+      try {
+        const body = await req.json();
+        id = body?.id;
+      } catch (_) {
+        // ignore when body is empty
+      }
+    }
+
+    if (!id) return NextResponse.json({ error: "ID is required" }, { status: 400 });
+
+    await prisma.category.delete({ where: { id } });
+    return NextResponse.json({ message: "Category deleted" });
+  } catch (error) {
+    return NextResponse.json({ error: "Failed to delete category" }, { status: 500 });
+  }
+}

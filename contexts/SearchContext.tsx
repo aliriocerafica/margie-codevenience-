@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 
 // Types for searchable content
@@ -13,23 +13,19 @@ export interface SearchableItem {
   metadata?: Record<string, any>;
 }
 
-// Sample searchable data - this would typically come from your database
-const searchableData: SearchableItem[] = [
+// Base static items (pages)
+const staticPages: SearchableItem[] = [
   // Pages
   { id: 'dashboard', title: 'Dashboard', description: 'Main dashboard overview', type: 'page', url: '/dashboard' },
   { id: 'products', title: 'Products', description: 'Product management', type: 'page', url: '/product' },
   { id: 'categories', title: 'Categories', description: 'Category management', type: 'page', url: '/category' },
-  
-  // Sample Products
-  { id: 'product-1', title: 'Wireless Headphones', description: 'Premium wireless headphones with noise cancellation', type: 'product', url: '/product?id=1', metadata: { price: '$299.99', category: 'Electronics' } },
-  { id: 'product-2', title: 'Smartphone Case', description: 'Protective case for latest smartphones', type: 'product', url: '/product?id=2', metadata: { price: '$29.99', category: 'Accessories' } },
-  { id: 'product-3', title: 'Laptop Stand', description: 'Adjustable aluminum laptop stand', type: 'product', url: '/product?id=3', metadata: { price: '$59.99', category: 'Office' } },
-  { id: 'product-4', title: 'Coffee Mug', description: 'Ceramic coffee mug with company logo', type: 'product', url: '/product?id=4', metadata: { price: '$15.99', category: 'Merchandise' } },
-  
-  // Sample Categories
-  { id: 'category-1', title: 'Electronics', description: 'Electronic devices and gadgets', type: 'category', url: '/category?id=1' },
-  { id: 'category-2', title: 'Accessories', description: 'Phone and computer accessories', type: 'category', url: '/category?id=2' },
-  { id: 'category-3', title: 'Office', description: 'Office supplies and equipment', type: 'category', url: '/category?id=3' },
+  { id: 'users', title: 'Users', description: 'Manage application users', type: 'page', url: '/users' },
+  { id: 'scan-qr', title: 'Scan QR', description: 'Scan product QR codes', type: 'page', url: '/scanqr' },
+  { id: 'scanned-list', title: 'Scanned List', description: 'Point of Sale scanned items', type: 'page', url: '/ScannedList' },
+  { id: 'calendar', title: 'Calendar', description: 'Schedule and events', type: 'page', url: '/calendar' },
+  { id: 'suppliers', title: 'Suppliers', description: 'Manage suppliers', type: 'page', url: '/suppliers' },
+  { id: 'reports', title: 'Reports', description: 'View business reports', type: 'page', url: '/reports' },
+  { id: 'profile', title: 'Profile', description: 'User profile and settings', type: 'page', url: '/profile' },
 ];
 
 interface SearchContextType {
@@ -54,22 +50,105 @@ export function SearchProvider({ children }: { children: React.ReactNode }) {
   const [isSearching, setIsSearching] = useState(false);
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
 
+  const debounceRef = useRef<number | undefined>(undefined);
+  const abortRef = useRef<AbortController | null>(null);
+
   const performSearch = useCallback((query: string) => {
-    setIsSearching(true);
-    
-    // Simulate search delay
-    setTimeout(() => {
-      if (query.trim() === '') {
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
+
+    // Debounce 300ms
+    debounceRef.current = window.setTimeout(async () => {
+      const q = query.trim().toLowerCase();
+      if (!q) {
         setSearchResults([]);
-      } else {
-        const filtered = searchableData.filter(item =>
-          item.title.toLowerCase().includes(query.toLowerCase()) ||
-          item.description?.toLowerCase().includes(query.toLowerCase()) ||
-          item.type.toLowerCase().includes(query.toLowerCase())
-        );
-        setSearchResults(filtered);
+        setIsSearching(false);
+        return;
       }
-      setIsSearching(false);
+
+      setIsSearching(true);
+      // cancel in-flight
+      if (abortRef.current) abortRef.current.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
+
+      try {
+        const [productsRes, categoriesRes, usersRes] = await Promise.allSettled([
+          fetch('/api/product', { signal: controller.signal }),
+          fetch('/api/category', { signal: controller.signal }),
+          fetch('/api/users', { signal: controller.signal }),
+        ]);
+
+        const results: SearchableItem[] = [...staticPages];
+
+        if (productsRes.status === 'fulfilled' && productsRes.value.ok) {
+          const products = await productsRes.value.json();
+          if (Array.isArray(products)) {
+            for (const p of products) {
+              const title = String(p.name ?? '').trim();
+              const category = String(p.category?.name ?? '').trim();
+              if (!title) continue;
+              results.push({
+                id: String(p.id ?? title),
+                title,
+                description: category ? `Category: ${category}` : undefined,
+                type: 'product',
+                url: '/product',
+                metadata: { price: p.price, category },
+              });
+            }
+          }
+        }
+
+        if (categoriesRes.status === 'fulfilled' && categoriesRes.value.ok) {
+          const categories = await categoriesRes.value.json();
+          if (Array.isArray(categories)) {
+            for (const c of categories) {
+              const title = String(c.name ?? '').trim();
+              if (!title) continue;
+              results.push({
+                id: String(c.id ?? title),
+                title,
+                description: `Products: ${c.productCount ?? 0}`,
+                type: 'category',
+                url: '/category',
+              });
+            }
+          }
+        }
+
+        if (usersRes.status === 'fulfilled' && usersRes.value.ok) {
+          const users = await usersRes.value.json();
+          if (Array.isArray(users)) {
+            for (const u of users) {
+              const title = String(u.email ?? '').trim();
+              if (!title) continue;
+              results.push({
+                id: String(u.id ?? title),
+                title,
+                description: `Role: ${u.role ?? ''}`,
+                type: 'user',
+                url: '/users',
+              });
+            }
+          }
+        }
+
+        // filter by query across title/description/type
+        const filtered = results.filter(item =>
+          item.title.toLowerCase().includes(q) ||
+          (item.description?.toLowerCase() ?? '').includes(q) ||
+          item.type.toLowerCase().includes(q)
+        );
+
+        setSearchResults(filtered);
+      } catch (_) {
+        // ignore errors on abort or fetch failures; show no results
+        setSearchResults([]);
+      } finally {
+        setIsSearching(false);
+      }
     }, 300);
   }, []);
 

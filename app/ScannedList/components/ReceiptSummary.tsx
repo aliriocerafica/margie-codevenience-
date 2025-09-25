@@ -19,6 +19,14 @@ export type ReceiptSummaryProps = {
 };
 
 export const ReceiptSummary: React.FC<ReceiptSummaryProps> = ({ subtotal, discount, taxRatePercent, additionalFees = [], onCheckout, onClear }) => {
+    const formatCurrency2dp = (amount: number) => {
+        return new Intl.NumberFormat('en-PH', {
+            style: 'currency',
+            currency: 'PHP',
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+        }).format(amount);
+    };
     const taxableBase = Math.max(0, subtotal - discount);
     const taxAmount = (taxableBase * taxRatePercent) / 100;
     const feesTotal = additionalFees.reduce((sum, f) => sum + f.value, 0);
@@ -31,20 +39,20 @@ export const ReceiptSummary: React.FC<ReceiptSummaryProps> = ({ subtotal, discou
             <div className="space-y-2 text-sm">
                 <div className="flex items-center justify-between">
                     <span className="text-gray-600 dark:text-gray-400">Subtotal</span>
-                    <span className="font-medium">{formatCurrency(subtotal)}</span>
+                    <span className="font-medium">{formatCurrency2dp(subtotal)}</span>
                 </div>
                 <div className="flex items-center justify-between">
                     <span className="text-gray-600 dark:text-gray-400">Discount</span>
-                    <span className="font-medium text-rose-600">- {formatCurrency(discount)}</span>
+                    <span className="font-medium text-rose-600">- {formatCurrency2dp(discount)}</span>
                 </div>
                 <div className="flex items-center justify-between">
                     <span className="text-gray-600 dark:text-gray-400">Tax ({taxRatePercent}%)</span>
-                    <span className="font-medium">{formatCurrency(taxAmount)}</span>
+                    <span className="font-medium">{formatCurrency2dp(taxAmount)}</span>
                 </div>
                 {additionalFees.map((f, idx) => (
                     <div key={idx} className="flex items-center justify-between">
                         <span className="text-gray-600 dark:text-gray-400">{f.label}</span>
-                        <span className={f.emphasize ? "font-semibold" : "font-medium"}>{formatCurrency(f.value)}</span>
+                        <span className={f.emphasize ? "font-semibold" : "font-medium"}>{formatCurrency2dp(f.value)}</span>
                     </div>
                 ))}
             </div>
@@ -52,7 +60,7 @@ export const ReceiptSummary: React.FC<ReceiptSummaryProps> = ({ subtotal, discou
             <div className="border-t border-gray-200 dark:border-gray-800 pt-3">
                 <div className="flex items-center justify-between text-base">
                     <span className="font-semibold">Total</span>
-                    <span className="font-semibold">{formatCurrency(grandTotal)}</span>
+                    <span className="font-semibold">{formatCurrency2dp(grandTotal)}</span>
                 </div>
             </div>
 

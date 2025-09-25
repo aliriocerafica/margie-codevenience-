@@ -305,19 +305,14 @@ export const CATEGORY_STATUS_OPTIONS = [
 ];
 
 // Currency formatting
-export const formatCurrency = (
-  amount: string | number,
-  options?: { decimals?: number | "auto" }
-): string => {
-  const numAmount = typeof amount === "string" ? parseFloat(amount.replace(/[^0-9.\-]/g, "")) : amount;
-  const decimalsOption = options?.decimals ?? "auto";
-  const decimals = decimalsOption === "auto" ? (Number.isInteger(numAmount) ? 0 : 2) : decimalsOption;
-  return new Intl.NumberFormat("en-PH", {
-    style: "currency",
-    currency: "PHP",
-    minimumFractionDigits: decimals,
-    maximumFractionDigits: decimals,
-  }).format(Number.isFinite(numAmount) ? numAmount : 0);
+export const formatCurrency = (amount: string | number): string => {
+  const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
+  return new Intl.NumberFormat('en-PH', {
+    style: 'currency',
+    currency: 'PHP',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(numAmount);
 };
 
 // Loading states

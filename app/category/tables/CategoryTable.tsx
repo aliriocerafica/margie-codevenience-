@@ -2,17 +2,19 @@
 
 import React from "react";
 import DataTable from "@/components/DataTable";
-import { StatusChip } from "@/components/ui/StatusChip";
-import { CATEGORY_STATUS_COLORS, CATEGORY_STATUS_OPTIONS } from "@/lib/constants";
 import type { Category } from "@/types";
+import { Button, Tooltip } from "@heroui/react";
+import { Pencil, Trash2 } from "lucide-react";
 
 interface CategoryTableProps {
   data: Category[] | undefined;
   isLoading?: boolean;
   error?: any;
+  onEdit?: (category: Category) => void;
+  onRequestDelete?: (category: Category) => void;
 }
 
-export const CategoryTable: React.FC<CategoryTableProps> = ({ data, isLoading, error }) => {
+export const CategoryTable: React.FC<CategoryTableProps> = ({ data, isLoading, error, onEdit, onRequestDelete }) => {
   const columns = [
     { key: "id", header: "#", renderCell: (_row: Category, index?: number) => index ?? "" },
     { 
@@ -42,18 +44,33 @@ export const CategoryTable: React.FC<CategoryTableProps> = ({ data, isLoading, e
         </div>
       )
     },
-    {
-      key: "status",
-      header: "Status",
-      renderCell: (row: Category) => (
-        <StatusChip 
-          status={row.status || 'active'} 
-          colorMap={CATEGORY_STATUS_COLORS}
-          variant="flat"
-          size="sm"
-        />
-      ),
+    { 
+      key: "createdAt", 
+      header: "Created At",
+      renderCell: (row: any) => {
+        const d = row?.createdAt ? new Date(row.createdAt) : null;
+        const formatted = d ? `${d.toLocaleDateString()} ${d.toLocaleTimeString()}` : "-";
+        return <span className="text-sm text-gray-700 dark:text-gray-300 inline-block w-40 text-right whitespace-nowrap">{formatted}</span>;
+      }
     },
+    {
+      key: "actions",
+      header: "Actions",
+      renderCell: (row: any) => (
+        <div className="flex items-center gap-1 justify-end w-24">
+          <Tooltip content="Edit" placement="top">
+            <Button isIconOnly size="sm" variant="flat" color="primary" onPress={() => onEdit?.(row)}>
+              <Pencil size={16} />
+            </Button>
+          </Tooltip>
+          <Tooltip content="Delete" placement="top">
+            <Button isIconOnly size="sm" variant="flat" color="danger" onPress={() => onRequestDelete?.(row)}>
+              <Trash2 size={16} />
+            </Button>
+          </Tooltip>
+        </div>
+      )
+    }
   ];
 
   if (isLoading) {
@@ -63,7 +80,7 @@ export const CategoryTable: React.FC<CategoryTableProps> = ({ data, isLoading, e
           filter={true}
           label="Category List"
           description="Loading categories..."
-          statusOptions={CATEGORY_STATUS_OPTIONS}
+          statusOptions={[]}
           columns={columns}
           data={[]}
           isLoading={true}
@@ -79,7 +96,7 @@ export const CategoryTable: React.FC<CategoryTableProps> = ({ data, isLoading, e
           filter={true}
           label="Category List"
           description="Failed to load categories."
-          statusOptions={CATEGORY_STATUS_OPTIONS}
+          statusOptions={[]}
           columns={columns}
           data={[]}
           error={error}
@@ -94,7 +111,7 @@ export const CategoryTable: React.FC<CategoryTableProps> = ({ data, isLoading, e
         filter={true}
         label="Category List"
         description="Organize your products into categories for better management."
-        statusOptions={CATEGORY_STATUS_OPTIONS}
+        statusOptions={[]}
         columns={columns}
         data={data || []}
       />
