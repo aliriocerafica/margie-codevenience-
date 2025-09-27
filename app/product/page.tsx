@@ -8,18 +8,26 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 import { ErrorMessage } from "@/components/ui/ErrorMessage";
 import { StatCard } from "@/components/ui/StatCard";
-import { ProductTable } from "./tables/ProductTable";
+import { ProductTable } from "./components/ProductTable";
+import AddProductModal from "@/app/product/components/AddProductModal";
+import DeleteProductModal from "@/app/product/components/DeleteProductModal";
+import EditProductModal from "@/app/product/components/EditProductModal";
 import { LOADING_MESSAGES, ERROR_MESSAGES } from "@/lib/constants";
 
 const fetcher = (url: string) => fetch(url).then(res => res.json());
 
 const Product = () => {
     const [useBackendData] = useState(true);
+    const [isAddProductModalOpen, setIsAddProductModalOpen] = useState(false);
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [productToDelete, setProductToDelete] = useState<any>(null);
+    const [productToEdit, setProductToEdit] = useState<any>(null);
     const { data, error, isLoading, mutate } = useSWR(
-        useBackendData ? `/api/product` : null, 
+        useBackendData ? `/api/product` : null,
         fetcher
     );
-    
+
     // Enable page highlighting for search results
     usePageHighlight();
 
@@ -28,7 +36,35 @@ const Product = () => {
     const currentLoading = isLoading;
 
     const handleAddProduct = () => {
-        console.log("Add new product");
+        setIsAddProductModalOpen(true);
+    };
+
+    const handleProductAdded = (newProduct: any) => {
+        // Refresh the product list to show the new product
+        mutate();
+        console.log("New product added:", newProduct);
+    };
+
+    const handleDeleteProduct = (product: any) => {
+        setProductToDelete(product);
+        setIsDeleteModalOpen(true);
+    };
+
+    const handleEditProduct = (product: any) => {
+        setProductToEdit(product);
+        setIsEditModalOpen(true);
+    };
+
+    const handleProductDeleted = (productId: string) => {
+        // Refresh the product list to remove the deleted product
+        mutate();
+        console.log("Product deleted:", productId);
+    };
+
+    const handleProductUpdated = (updatedProduct: any) => {
+        // Refresh the product list to show the updated product
+        mutate();
+        console.log("Product updated:", updatedProduct);
     };
 
     const handleExportData = () => {
@@ -45,17 +81,17 @@ const Product = () => {
 
     if (currentError) {
         return (
-            <ErrorMessage 
-              message={ERROR_MESSAGES.products} 
-              onRetry={handleRetry}
-              variant="card"
+            <ErrorMessage
+                message={ERROR_MESSAGES.products}
+                onRetry={handleRetry}
+                variant="card"
             />
         );
     }
 
     return (
         <div className="space-y-6">
-            <PageHeader 
+            <PageHeader
                 title="Products"
                 description="Manage your product inventory and pricing."
                 action={{
@@ -95,10 +131,35 @@ const Product = () => {
             </div>
 
             {/* Products Table */}
-            <ProductTable 
+            <ProductTable
                 data={productData}
                 isLoading={currentLoading}
                 error={currentError}
+                onEdit={handleEditProduct}
+                onDelete={handleDeleteProduct}
+            />
+
+            {/* Add Product Modal */}
+            <AddProductModal
+                isOpen={isAddProductModalOpen}
+                onClose={() => setIsAddProductModalOpen(false)}
+                onProductAdded={handleProductAdded}
+            />
+
+            {/* Delete Product Modal */}
+            <DeleteProductModal
+                isOpen={isDeleteModalOpen}
+                onClose={() => setIsDeleteModalOpen(false)}
+                product={productToDelete}
+                onProductDeleted={handleProductDeleted}
+            />
+
+            {/* Edit Product Modal */}
+            <EditProductModal
+                isOpen={isEditModalOpen}
+                onClose={() => setIsEditModalOpen(false)}
+                product={productToEdit}
+                onProductUpdated={handleProductUpdated}
             />
         </div>
     );

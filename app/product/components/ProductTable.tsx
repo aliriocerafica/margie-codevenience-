@@ -1,7 +1,8 @@
 "use client";
 
 import React from "react";
-import { Chip } from "@heroui/react";
+import { Chip, Button, Tooltip } from "@heroui/react";
+import { Trash2, Edit } from "lucide-react";
 import DataTable from "@/components/DataTable";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { formatCurrency, PRODUCT_STATUS_COLORS, PRODUCT_STATUS_OPTIONS } from "@/lib/constants";
@@ -24,9 +25,11 @@ interface ProductTableProps {
   data: ProductRow[] | undefined;
   isLoading?: boolean;
   error?: any;
+  onEdit?: (product: ProductRow) => void;
+  onDelete?: (product: ProductRow) => void;
 }
 
-export const ProductTable: React.FC<ProductTableProps> = ({ data, isLoading, error }) => {
+export const ProductTable: React.FC<ProductTableProps> = ({ data, isLoading, error, onEdit, onDelete }) => {
   const columns = [
     { key: "id", header: "#", renderCell: (_row: ProductRow, index?: number) => index ?? "" },
     {
@@ -117,6 +120,36 @@ export const ProductTable: React.FC<ProductTableProps> = ({ data, isLoading, err
         />
       ),
     },
+    {
+      key: "actions",
+      header: "Actions",
+      renderCell: (row: ProductRow) => (
+        <div className="flex items-center gap-1 justify-end w-24">
+          <Tooltip content="Edit" placement="top">
+            <Button 
+              isIconOnly 
+              size="sm" 
+              variant="flat" 
+              color="primary" 
+              onPress={() => onEdit?.(row)}
+            >
+              <Edit size={16} />
+            </Button>
+          </Tooltip>
+          <Tooltip content="Delete" placement="top">
+            <Button 
+              isIconOnly 
+              size="sm" 
+              variant="flat" 
+              color="danger" 
+              onPress={() => onDelete?.(row)}
+            >
+              <Trash2 size={16} />
+            </Button>
+          </Tooltip>
+        </div>
+      )
+    }
   ];
 
   if (isLoading) {
