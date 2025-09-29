@@ -54,6 +54,7 @@ export default function AddProductModal({ isOpen, onClose, onProductAdded }: Add
   const [previewImage, setPreviewImage] = useState<string>('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isDragOver, setIsDragOver] = useState(false);
 
   const [formData, setFormData] = useState<ProductFormData>({
     name: '',
@@ -68,6 +69,35 @@ export default function AddProductModal({ isOpen, onClose, onProductAdded }: Add
   useEffect(() => {
     if (isOpen) {
       fetchCategories();
+    }
+  }, [isOpen]);
+
+  // Handle paste events
+  useEffect(() => {
+    const handlePaste = (event: ClipboardEvent) => {
+      if (!isOpen) return;
+      
+      const items = event.clipboardData?.items;
+      if (!items) return;
+
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        if (item.type.startsWith('image/')) {
+          event.preventDefault();
+          const file = item.getAsFile();
+          if (file) {
+            handleImageFile(file, 'paste');
+          }
+          break;
+        }
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener('paste', handlePaste);
+      return () => {
+        document.removeEventListener('paste', handlePaste);
+      };
     }
   }, [isOpen]);
 
@@ -170,31 +200,64 @@ export default function AddProductModal({ isOpen, onClose, onProductAdded }: Add
     }
   };
 
+  const handleImageFile = (file: File, source: 'paste' | 'drag' | 'click' = 'click') => {
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      showNotification({
+        title: "Invalid File Type",
+        description: "Please select an image file.",
+        type: "error"
+      });
+      return;
+    }
+
+    // Validate file size (5MB limit)
+    if (file.size > 5 * 1024 * 1024) {
+      showNotification({
+        title: "File Too Large",
+        description: "Please select an image smaller than 5MB.",
+        type: "error"
+      });
+      return;
+    }
+
+    // Show feedback for paste
+    if (source === 'paste') {
+      showNotification({
+        title: "Image Pasted!",
+        description: "Processing your pasted image...",
+        type: "success"
+      });
+    }
+
+    setSelectedFile(file);
+    handleImageUpload(file);
+  };
+
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      // Validate file type
-      if (!file.type.startsWith('image/')) {
-        showNotification({
-          title: "Invalid File Type",
-          description: "Please select an image file.",
-          type: "error"
-        });
-        return;
-      }
+      handleImageFile(file, 'click');
+    }
+  };
 
-      // Validate file size (5MB limit)
-      if (file.size > 5 * 1024 * 1024) {
-        showNotification({
-          title: "File Too Large",
-          description: "Please select an image smaller than 5MB.",
-          type: "error"
-        });
-        return;
-      }
+  const handleDragOver = (event: React.DragEvent) => {
+    event.preventDefault();
+    setIsDragOver(true);
+  };
 
-      setSelectedFile(file);
-      handleImageUpload(file);
+  const handleDragLeave = (event: React.DragEvent) => {
+    event.preventDefault();
+    setIsDragOver(false);
+  };
+
+  const handleDrop = (event: React.DragEvent) => {
+    event.preventDefault();
+    setIsDragOver(false);
+    
+    const files = event.dataTransfer.files;
+    if (files.length > 0) {
+      handleImageFile(files[0], 'drag');
     }
   };
 
@@ -349,6 +412,17 @@ export default function AddProductModal({ isOpen, onClose, onProductAdded }: Add
         footer: "border-t border-gray-200 dark:border-gray-700",
         closeButton: "hover:bg-gray-100 dark:hover:bg-gray-800",
       }}
+      onOpenChange={(open) => {
+        if (open) {
+          // Focus the modal when it opens to ensure paste events work
+          setTimeout(() => {
+            const modal = document.querySelector('[role="dialog"]');
+            if (modal) {
+              (modal as HTMLElement).focus();
+            }
+          }, 100);
+        }
+      }}
     >
       <ModalContent>
         <ModalHeader className="flex flex-col gap-1">
@@ -384,7 +458,16 @@ export default function AddProductModal({ isOpen, onClose, onProductAdded }: Add
                   </button>
                 </div>
               ) : (
-                <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6 text-center hover:border-[#003366] dark:hover:border-[#4A90E2] transition-colors">
+                <div 
+                  className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
+                    isDragOver 
+                      ? 'border-[#003366] dark:border-[#4A90E2] bg-blue-50 dark:bg-blue-950/20' 
+                      : 'border-gray-300 dark:border-gray-600 hover:border-[#003366] dark:hover:border-[#4A90E2]'
+                  }`}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                >
                   <input
                     type="file"
                     accept="image/*"
@@ -411,9 +494,20 @@ export default function AddProductModal({ isOpen, onClose, onProductAdded }: Add
                       <>
                         <ImageIcon className="w-8 h-8 text-gray-400" />
                         <span className="text-sm text-gray-600 dark:text-gray-400">
-                          Click to upload an image or drag and drop
+                          {isDragOver ? 'Drop image here' : 'Click to upload, drag & drop, or paste image'}
                         </span>
                         <span className="text-xs text-gray-500">PNG, JPG, GIF up to 5MB</span>
+                        <div className="mt-2 flex items-center justify-center gap-4 text-xs text-gray-400">
+                          <span className="flex items-center gap-1">
+                            📁 Click to browse
+                          </span>
+                          <span className="flex items-center gap-1">
+                            🖱️ Drag & drop
+                          </span>
+                          <span className="flex items-center gap-1">
+                            📋 <kbd className="px-1 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-xs">Ctrl+V</kbd> to paste
+                          </span>
+                        </div>
                       </>
                     )}
                   </label>

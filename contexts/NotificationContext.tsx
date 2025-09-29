@@ -1,7 +1,6 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { SAMPLE_PRODUCTS } from '@/lib/constants';
 
 interface Notification {
   id: string;
@@ -125,75 +124,19 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
       
       console.log(`Generated ${newNotifications.length} stock notifications (${data.alerts.lowStock.length} low stock, ${data.alerts.outOfStock.length} out of stock)`);
       
-      // Add system notifications
-      addSystemNotifications(newNotifications);
-      
       // Update state immediately
       console.log('Updating notification state with new notifications:', newNotifications.length);
       updateNotificationState(newNotifications);
       
     } catch (error) {
-      console.error('Error fetching products from database, falling back to sample data:', error);
+      console.error('Error fetching notifications:', error);
       
-      // Fallback to sample data if API fails
-      const fallbackNotifications: Notification[] = [];
-      SAMPLE_PRODUCTS.forEach(product => {
-        if (product.stock === 0) {
-          fallbackNotifications.push({
-            id: `out_of_stock_${product.id}`,
-            type: 'out_of_stock',
-            title: 'Product Out of Stock (Sample)',
-            message: `${product.name} is completely out of stock and needs immediate restocking.`,
-            timestamp: new Date(),
-            isRead: false,
-            productId: product.id,
-            productName: product.name,
-            currentStock: product.stock
-          });
-        } else if (product.stock <= threshold && product.stock > 0) {
-          fallbackNotifications.push({
-            id: `low_stock_${product.id}`,
-            type: 'low_stock',
-            title: 'Low Stock Alert (Sample)',
-            message: `${product.name} is running low on stock (${product.stock} units remaining). Consider restocking soon.`,
-            timestamp: new Date(),
-            isRead: false,
-            productId: product.id,
-            productName: product.name,
-            currentStock: product.stock,
-            threshold: threshold
-          });
-        }
-      });
-      
-      // Add system notifications to fallback
-      addSystemNotifications(fallbackNotifications);
-      
-      // Update state with fallback
-      updateNotificationState(fallbackNotifications);
+      // Set empty notifications if API fails
+      setNotifications([]);
+      setUnreadCount(0);
     }
   };
 
-  const addSystemNotifications = (notifications: Notification[]) => {
-    // Add some system notifications
-    notifications.push({
-      id: 'system_1',
-      type: 'system',
-      title: 'Weekly Inventory Report',
-      message: 'Your weekly inventory report is ready for review.',
-      timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 hours ago
-      isRead: false
-    });
-
-    notifications.push({
-      id: 'system_2',
-      type: 'system',
-      title: 'New Product Added',
-      message: 'A new product has been added to your inventory.',
-      timestamp: new Date(Date.now() - 4 * 60 * 60 * 1000), // 4 hours ago
-      isRead: true
-    });
-  };
 
   const updateNotificationState = (notifications: Notification[]) => {
     // Sort by timestamp (newest first)

@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { emailSettings } from '@/lib/emailSettings';
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const threshold = searchParams.get('threshold');
+    const sendEmail = searchParams.get('sendEmail') === 'true';
     
     if (!threshold) {
       return NextResponse.json(
@@ -43,10 +45,7 @@ export async function GET(request: NextRequest) {
       price: product.price,
       stock: parseInt(product.stock) || 0,
       status: product.status,
-      category: {
-        id: product.category.id,
-        name: product.category.name
-      },
+      category: product.category.name, // Flatten category to just the name
       barcode: product.barcode,
       imageUrl: product.imageUrl,
       createdAt: product.createdAt,
@@ -64,6 +63,79 @@ export async function GET(request: NextRequest) {
 
     console.log(`Low stock products (≤${thresholdNum}):`, lowStockProducts.length);
     console.log(`Out of stock products:`, outOfStockProducts.length);
+
+    // Send email notifications if there are alerts and email is configured
+    try {
+      let notificationEmail = null;
+      let shouldSendEmail = false;
+      
+      // Determine email address and sending logic
+      const userSettings = emailSettings.get();
+      
+      if (userSettings) {
+        // User has settings configured
+        if (userSettings.emailAlerts) {
+          // Email alerts are enabled
+          if (userSettings.useDefaultEmail) {
+            // User wants to use default email
+            notificationEmail = process.env.DEFAULT_NOTIFICATION_EMAIL;
+            console.log('Using default email as requested by user:', notificationEmail);
+          } else {
+            // User wants to use custom email
+            if (userSettings.emailAddress && userSettings.emailAddress.trim() && 
+                /\S+@\S+\.\S+/.test(userSettings.emailAddress.trim())) {
+              notificationEmail = userSettings.emailAddress.trim();
+              console.log('Using user-configured custom email:', notificationEmail);
+            } else {
+              // Custom email is invalid, fallback to default
+              notificationEmail = process.env.DEFAULT_NOTIFICATION_EMAIL;
+              console.log('User custom email invalid, using default email:', notificationEmail);
+            }
+          }
+          shouldSendEmail = true;
+        } else {
+          // Email alerts disabled by user
+          console.log('Email alerts disabled by user settings - no email will be sent');
+          shouldSendEmail = false;
+        }
+      } else {
+        // No user settings, use default email if available
+        if (process.env.DEFAULT_NOTIFICATION_EMAIL) {
+          notificationEmail = process.env.DEFAULT_NOTIFICATION_EMAIL;
+          console.log('No user settings, using default email:', notificationEmail);
+          shouldSendEmail = true;
+        } else {
+          console.log('No email configuration available');
+        }
+      }
+      
+      // Only send emails if explicitly requested (not for previews) and conditions are met
+      if (sendEmail && shouldSendEmail && notificationEmail && (lowStockProducts.length > 0 || outOfStockProducts.length > 0)) {
+        console.log('Sending stock alerts to:', notificationEmail);
+        
+        // Send a single combined email for all stock alerts
+        const allAlerts = [...lowStockProducts, ...outOfStockProducts];
+        const alertType = outOfStockProducts.length > 0 ? 'out_of_stock' : 'low_stock';
+        
+        fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/email/send-stock-alert`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            alertType,
+            threshold: thresholdNum,
+            emailAddress: notificationEmail,
+            products: allAlerts
+          }),
+        }).catch(error => {
+          console.error('Failed to send stock alert email:', error);
+        });
+      }
+    } catch (error) {
+      console.error('Error sending stock alert emails:', error);
+      // Don't fail the API call if email fails
+    }
 
     return NextResponse.json({
       success: true,

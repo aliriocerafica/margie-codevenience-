@@ -4,7 +4,7 @@ import React from "react";
 import DataTable from "@/components/DataTable";
 import type { Category } from "@/types";
 import { Button, Tooltip } from "@heroui/react";
-import { Pencil, Trash2 } from "lucide-react";
+import { Edit, Trash2 } from "lucide-react";
 
 interface CategoryTableProps {
   data: Category[] | undefined;
@@ -60,7 +60,7 @@ export const CategoryTable: React.FC<CategoryTableProps> = ({ data, isLoading, e
         <div className="flex items-center gap-1 justify-end w-24">
           <Tooltip content="Edit" placement="top">
             <Button isIconOnly size="sm" variant="flat" color="primary" onPress={() => onEdit?.(row)}>
-              <Pencil size={16} />
+              <Edit size={16} />
             </Button>
           </Tooltip>
           <Tooltip content="Delete" placement="top">

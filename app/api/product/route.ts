@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { emailSettings } from "@/lib/emailSettings";
 
 export async function GET() {
   const product = await prisma.product.findMany({
@@ -30,6 +31,40 @@ export async function POST(req: Request) {
       data: { name, price, stock, status, imageUrl, barcode, categoryId },
       include: { category: { select: { name: true } } },
     });
+
+    // Send new product email notification if email alerts are enabled
+    try {
+      // Check for user-configured email settings first
+      let notificationEmail = null;
+      
+      if (emailSettings.isConfigured()) {
+        notificationEmail = emailSettings.getNotificationEmail();
+        console.log('Using user-configured email for new product notification:', notificationEmail);
+      } else {
+        // Fallback to default email if no user settings
+        notificationEmail = process.env.DEFAULT_NOTIFICATION_EMAIL;
+        console.log('Using default email for new product notification:', notificationEmail);
+      }
+      
+      if (notificationEmail) {
+        // Send email notification asynchronously
+        fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/email/send-new-product`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            productId: created.id,
+            emailAddress: notificationEmail
+          }),
+        }).catch(error => {
+          console.error('Failed to send new product email:', error);
+        });
+      }
+    } catch (error) {
+      console.error('Error sending new product email:', error);
+      // Don't fail the product creation if email fails
+    }
 
     return NextResponse.json({ message: "Product created", product: created }, { status: 201 });
   } catch (error) {

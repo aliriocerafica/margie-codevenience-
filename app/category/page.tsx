@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Plus, Tag, Grid, TrendingUp, Tag as TagIcon, Pencil, Trash2 } from "lucide-react";
+import { Plus, Tag, Grid, TrendingUp, Tag as TagIcon, Pencil, Trash2, CheckCircle, AlertTriangle } from "lucide-react";
 import useSWR from "swr";
 import { usePageHighlight } from "@/hooks/usePageHighlight";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -10,7 +10,7 @@ import { ErrorMessage } from "@/components/ui/ErrorMessage";
 import { StatCard } from "@/components/ui/StatCard";
 import { CategoryTable } from "./tables/CategoryTable";
 import { LOADING_MESSAGES, ERROR_MESSAGES } from "@/lib/constants";
-import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button, Input } from "@heroui/react";
+import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button, Input, Card, CardBody } from "@heroui/react";
 
 const fetcher = (url: string) => fetch(url).then(res => res.json());
 
@@ -25,6 +25,16 @@ const Category = () => {
     const [adding, setAdding] = useState(false);
     const [newCategoryName, setNewCategoryName] = useState("");
     const [deleting, setDeleting] = useState<{ id: string; name: string } | null>(null);
+    
+    const showNotification = (title: string, type: 'success' | 'error') => {
+        const notification = document.createElement('div');
+        notification.className = `fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg max-w-sm ${
+            type === 'success' ? 'bg-green-50 border border-green-200 text-green-800' : 'bg-red-50 border border-red-200 text-red-800'
+        }`;
+        notification.innerHTML = `<div class="flex items-center gap-2"><span class="font-semibold">${title}</span></div>`;
+        document.body.appendChild(notification);
+        setTimeout(() => notification.remove(), 5000);
+    };
     
     // Enable page highlighting for search results
     usePageHighlight();
@@ -115,26 +125,16 @@ const Category = () => {
             {/* Add Category - HeroUI Modal */}
             <Modal 
               isOpen={adding} 
-              onClose={() => setAdding(false)}
+              onClose={() => !saving && setAdding(false)}
               size="md"
               backdrop="blur"
-              classNames={{
-                backdrop: "bg-black/50 backdrop-blur-sm",
-                base: "border-none",
-                header: "border-b border-gray-200 dark:border-gray-700",
-                footer: "border-t border-gray-200 dark:border-gray-700",
-                closeButton: "hover:bg-gray-100 dark:hover:bg-gray-800",
-              }}
             >
               <ModalContent>
-                <ModalHeader className="flex flex-col gap-1">
+                <ModalHeader>
                   <div className="flex items-center gap-2">
-                    <TagIcon className="w-5 h-5 text-[#003366] dark:text-[#4A90E2]" />
-                    <span className="text-lg font-semibold">Add Category</span>
+                    <Tag className="w-5 h-5 text-[#003366] dark:text-[#4A90E2]" />
+                    <span>Add Category</span>
                   </div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 font-normal">
-                    Create a new category to organize your products
-                  </p>
                 </ModalHeader>
                 <ModalBody className="py-6">
                   <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Name</label>
@@ -149,12 +149,13 @@ const Category = () => {
                     }}
                   />
                 </ModalBody>
-                <ModalFooter className="justify-end gap-2">
-                  <Button variant="light" onPress={() => setAdding(false)} disabled={saving}>Cancel</Button>
+                <ModalFooter>
+                  <Button variant="light" onPress={() => !saving && setAdding(false)} isDisabled={saving}>Cancel</Button>
                   <Button
                     color="primary"
-                    className="bg-gradient-to-r from-[#003366] to-[#004488] hover:from-[#002244] hover:to-[#003366] text-white"
+                    isLoading={saving}
                     isDisabled={saving || !newCategoryName.trim()}
+                    startContent={!saving && <CheckCircle className="w-4 h-4" />}
                     onPress={async () => {
                       setSaving(true);
                       try {
@@ -164,17 +165,18 @@ const Category = () => {
                           body: JSON.stringify({ name: newCategoryName.trim() }),
                         });
                         if (!res.ok) throw new Error('Failed to add');
+                        showNotification('Category created successfully!', 'success');
                         setAdding(false);
                         setNewCategoryName("");
                         mutate();
                       } catch (_) {
-                        alert('Failed to add category');
+                        showNotification('Failed to create category', 'error');
                       } finally {
                         setSaving(false);
                       }
                     }}
                   >
-                    Save
+                    {saving ? 'Creating Category...' : 'Create Category'}
                   </Button>
                 </ModalFooter>
               </ModalContent>
@@ -183,26 +185,16 @@ const Category = () => {
             {/* Edit Category - HeroUI Modal */}
             <Modal 
               isOpen={!!editing} 
-              onClose={() => setEditing(null)}
+              onClose={() => !saving && setEditing(null)}
               size="md"
               backdrop="blur"
-              classNames={{
-                backdrop: "bg-black/50 backdrop-blur-sm",
-                base: "border-none",
-                header: "border-b border-gray-200 dark:border-gray-700",
-                footer: "border-t border-gray-200 dark:border-gray-700",
-                closeButton: "hover:bg-gray-100 dark:hover:bg-gray-800",
-              }}
             >
               <ModalContent>
-                <ModalHeader className="flex flex-col gap-1">
+                <ModalHeader>
                   <div className="flex items-center gap-2">
-                    <Pencil className="w-5 h-5 text-[#003366] dark:text-[#4A90E2]" />
-                    <span className="text-lg font-semibold">Edit Category</span>
+                    <Tag className="w-5 h-5 text-[#003366] dark:text-[#4A90E2]" />
+                    <span>Edit Category</span>
                   </div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 font-normal">
-                    Update the category name
-                  </p>
                 </ModalHeader>
                 <ModalBody className="py-6">
                   <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Name</label>
@@ -217,12 +209,13 @@ const Category = () => {
                     }}
                   />
                 </ModalBody>
-                <ModalFooter className="justify-end gap-2">
-                  <Button variant="light" onPress={() => setEditing(null)} disabled={saving}>Cancel</Button>
+                <ModalFooter>
+                  <Button variant="light" onPress={() => !saving && setEditing(null)} isDisabled={saving}>Cancel</Button>
                   <Button
                     color="primary"
-                    className="bg-gradient-to-r from-[#003366] to-[#004488] hover:from-[#002244] hover:to-[#003366] text-white"
+                    isLoading={saving}
                     isDisabled={saving || !editing?.name.trim()}
+                    startContent={!saving && <CheckCircle className="w-4 h-4" />}
                     onPress={async () => {
                       if (!editing) return;
                       setSaving(true);
@@ -233,16 +226,17 @@ const Category = () => {
                           body: JSON.stringify({ id: editing.id, name: editing.name.trim() }),
                         });
                         if (!res.ok) throw new Error('Failed to update');
+                        showNotification('Category updated successfully!', 'success');
                         setEditing(null);
                         mutate();
                       } catch (_) {
-                        alert('Failed to update category');
+                        showNotification('Failed to update category', 'error');
                       } finally {
                         setSaving(false);
                       }
                     }}
                   >
-                    Save
+                    {saving ? 'Updating Category...' : 'Update Category'}
                   </Button>
                 </ModalFooter>
               </ModalContent>
@@ -251,54 +245,65 @@ const Category = () => {
             {/* Delete Category - HeroUI Modal */}
             <Modal 
               isOpen={!!deleting} 
-              onClose={() => setDeleting(null)}
+              onClose={() => !saving && setDeleting(null)}
               size="md"
               backdrop="blur"
-              classNames={{
-                backdrop: "bg-black/50 backdrop-blur-sm",
-                base: "border-none",
-                header: "border-b border-gray-200 dark:border-gray-700",
-                footer: "border-t border-gray-200 dark:border-gray-700",
-                closeButton: "hover:bg-gray-100 dark:hover:bg-gray-800",
-              }}
             >
               <ModalContent>
-                <ModalHeader className="flex flex-col gap-1">
+                <ModalHeader>
                   <div className="flex items-center gap-2">
-                    <Trash2 className="w-5 h-5 text-rose-600" />
-                    <span className="text-lg font-semibold">Delete Category</span>
+                    <Trash2 className="w-5 h-5 text-red-500" />
+                    <span>Delete Category</span>
                   </div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 font-normal">
-                    Are you sure you want to delete "{deleting?.name}"? This action cannot be undone.
-                  </p>
                 </ModalHeader>
-                <ModalBody className="py-6">
-                  <div className="text-sm text-gray-600 dark:text-gray-300">
-                    This will permanently remove the category from your catalog.
+
+                <ModalBody>
+                  <Card className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
+                    <CardBody className="p-4">
+                      <div className="flex items-start gap-3">
+                        <AlertTriangle className="w-5 h-5 text-red-500 mt-0.5" />
+                        <div>
+                          <h4 className="font-semibold text-red-800 dark:text-red-200 text-sm">Warning: This action is permanent</h4>
+                          <p className="text-red-700 dark:text-red-300 text-sm mt-1">You are about to permanently delete this category and all its data.</p>
+                        </div>
+                      </div>
+                    </CardBody>
+                  </Card>
+
+                  <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                    <div className="w-12 h-12 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center">
+                      <Tag className="w-6 h-6 text-gray-400 dark:text-gray-500" />
+                    </div>
+                    <div>
+                      <h5 className="font-medium text-gray-900 dark:text-white">{deleting?.name}</h5>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">Category</p>
+                    </div>
                   </div>
                 </ModalBody>
-                <ModalFooter className="justify-end gap-2">
-                  <Button variant="light" onPress={() => setDeleting(null)} disabled={saving}>Cancel</Button>
+
+                <ModalFooter>
+                  <Button variant="light" onPress={() => !saving && setDeleting(null)} isDisabled={saving}>Cancel</Button>
                   <Button
                     color="danger"
-                    className="text-white"
-                    isDisabled={saving}
                     onPress={async () => {
                       if (!deleting) return;
                       setSaving(true);
                       try {
                         const res = await fetch(`/api/category?id=${deleting.id}`, { method: 'DELETE' });
                         if (!res.ok) throw new Error('Failed to delete');
+                        showNotification('Category deleted successfully!', 'success');
                         setDeleting(null);
                         mutate();
                       } catch (_) {
-                        alert('Failed to delete category');
+                        showNotification('Failed to delete category', 'error');
                       } finally {
                         setSaving(false);
                       }
                     }}
+                    isLoading={saving}
+                    startContent={!saving && <Trash2 className="w-4 h-4" />}
                   >
-                    Delete
+                    {saving ? 'Deleting...' : 'Delete Category'}
                   </Button>
                 </ModalFooter>
               </ModalContent>
