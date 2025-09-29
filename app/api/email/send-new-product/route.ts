@@ -33,7 +33,6 @@ export async function POST(request: NextRequest) {
     const productData = {
       id: product.id,
       name: product.name,
-      description: product.description || undefined,
       price: parseFloat(product.price),
       stock: parseInt(product.stock) || 0,
       category: product.category.name,

@@ -17,7 +17,6 @@ export type ProductRow = SampleProduct | {
   status?: string;
   imageUrl?: string | null;
   image?: string | null;
-  description?: string | null;
   category?: { name?: string | null } | null;
 };
 
@@ -51,11 +50,6 @@ export const ProductTable: React.FC<ProductTableProps> = ({ data, isLoading, err
       renderCell: (row: ProductRow) => (
         <div>
           <p className="font-medium text-gray-900 dark:text-white">{(row as any).name}</p>
-          {(row as any).description && (
-            <p className="text-sm text-gray-500 dark:text-gray-400 truncate max-w-xs">
-              {(row as any).description}
-            </p>
-          )}
         </div>
       )
     },

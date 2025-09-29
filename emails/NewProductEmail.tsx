@@ -19,7 +19,6 @@ interface NewProductEmailProps {
   product: {
     id: string;
     name: string;
-    description?: string;
     price: string;
     stock: number;
     category: string;
@@ -77,9 +76,6 @@ export const NewProductEmail = ({ product }: NewProductEmailProps) => {
                 </Column>
                 <Column style={productDetailsColumn}>
                   <Heading style={productName}>{product.name}</Heading>
-                  {product.description && (
-                    <Text style={productDescription}>{product.description}</Text>
-                  )}
                 </Column>
               </Row>
             </Section>
