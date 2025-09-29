@@ -1,7 +1,7 @@
 import nodemailer from 'nodemailer';
 import { render } from '@react-email/render';
-import StockAlertEmail from '../emails/StockAlertEmail';
-import NewProductEmail from '../emails/NewProductEmail';
+import { StockAlertEmail } from '../emails/StockAlertEmail';
+import { NewProductEmail } from '../emails/NewProductEmail';
 
 interface EmailConfig {
   host: string;
@@ -21,7 +21,7 @@ interface StockAlertData {
     stock: number;
     threshold?: number;
     category: string;
-    price: number;
+    price: string;
   }>;
   threshold: number;
 }
@@ -31,7 +31,7 @@ interface NewProductData {
     id: string;
     name: string;
     description?: string;
-    price: number;
+    price: string;
     stock: number;
     category: string;
     barcode?: string;
