@@ -6,7 +6,7 @@ export default auth((req) => {
   const isLoggedIn = !!req.auth;
   const user = req.auth?.user;
 
-  const url = req.nextUrl.origin; // use current origin (localhost in dev, Vercel in prod)
+  const url = "https://margie-codevenience.vercel.app";
 
   const { pathname } = req.nextUrl;
 
