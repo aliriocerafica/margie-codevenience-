@@ -27,7 +27,7 @@ interface NotificationContextType {
   lowStockThreshold: number;
   setLowStockThreshold: (threshold: number) => void;
   forceUpdateNotifications: (threshold: number) => Promise<void>;
-  addNewProductNotification: (productName: string, productId: string) => void;
+  addNewProductNotification: (productName: string, productId: string, isRestoration?: boolean) => void;
   clearAllNotifications: () => void;
 }
 

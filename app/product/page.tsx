@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, Suspense } from "react";
 import { Plus, Package, Download, Filter } from "lucide-react";
 import useSWR from "swr";
 import { usePageHighlight } from "@/hooks/usePageHighlight";
@@ -18,7 +18,8 @@ import { useNotifications } from "@/contexts/NotificationContext";
 
 const fetcher = (url: string) => fetch(url).then(res => res.json());
 
-const Product = () => {
+// Component that uses useSearchParams - needs to be wrapped in Suspense
+const ProductWithSearchParams = () => {
     const [useBackendData] = useState(true);
     const [isAddProductModalOpen, setIsAddProductModalOpen] = useState(false);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -194,6 +195,15 @@ const Product = () => {
                 onProductUpdated={handleProductUpdated}
             />
         </div>
+    );
+};
+
+// Main Product component wrapped in Suspense
+const Product = () => {
+    return (
+        <Suspense fallback={<LoadingSpinner message="Loading..." variant="card" />}>
+            <ProductWithSearchParams />
+        </Suspense>
     );
 };
 
