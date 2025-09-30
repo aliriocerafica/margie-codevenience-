@@ -42,7 +42,7 @@ export const DASHBOARD_QUICK_ACTIONS: QuickActionItem[] = [
     color: "primary", 
     variant: "flat", 
     icon: Package,
-    href: "/product/new"
+    href: "/product?add=1"
   },
   { 
     id: "manage-categories", 
@@ -66,7 +66,7 @@ export const DASHBOARD_QUICK_ACTIONS: QuickActionItem[] = [
     color: "warning", 
     variant: "flat", 
     icon: TrendingUp,
-    href: "/reports/sales"
+    href: "/reports"
   },
 ];
 

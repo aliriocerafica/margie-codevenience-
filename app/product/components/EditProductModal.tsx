@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button, Input, Select, SelectItem, Progress, Chip, Card, CardBody } from '@heroui/react';
 import { Package, Upload, X, CheckCircle, Image as ImageIcon, Loader2, AlertTriangle } from 'lucide-react';
+import { useNotifications } from '@/contexts/NotificationContext';
 
 interface EditProductModalProps {
   isOpen: boolean;
@@ -35,6 +36,7 @@ export default function EditProductModal({ isOpen, onClose, product, onProductUp
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [oldImageUrl, setOldImageUrl] = useState<string>('');
+  const { refreshNotifications } = useNotifications();
 
   const [formData, setFormData] = useState({
     name: '',
@@ -211,6 +213,8 @@ export default function EditProductModal({ isOpen, onClose, product, onProductUp
 
       showNotification('Product updated successfully!', 'success');
       onProductUpdated?.(await response.json());
+      // Immediately refresh stock alerts so the bell updates without a page refresh
+      try { await refreshNotifications(); } catch {}
       onClose();
     } catch (error) {
       showNotification('Failed to update product', 'error');

@@ -139,7 +139,7 @@ export const buildReceiptHtml = (data: ReceiptPayload) => {
 </html>`;
 };
 
-export const printReceipt = (payload: ReceiptPayload) => {
+export const printReceipt = async (payload: ReceiptPayload): Promise<void> => {
     const html = buildReceiptHtml(payload);
     const popupWidth = 400;
     const popupHeight = 600;
@@ -151,6 +151,15 @@ export const printReceipt = (payload: ReceiptPayload) => {
     printWindow.document.open();
     printWindow.document.write(html);
     printWindow.document.close();
+    // Wait until the print window is closed by the user, then resolve
+    await new Promise<void>((resolve) => {
+        const timer = window.setInterval(() => {
+            if (printWindow.closed) {
+                window.clearInterval(timer);
+                resolve();
+            }
+        }, 300);
+    });
 };
 
 

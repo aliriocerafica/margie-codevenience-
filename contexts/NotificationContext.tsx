@@ -27,6 +27,8 @@ interface NotificationContextType {
   lowStockThreshold: number;
   setLowStockThreshold: (threshold: number) => void;
   forceUpdateNotifications: (threshold: number) => Promise<void>;
+  addNewProductNotification: (productName: string, productId: string) => void;
+  clearAllNotifications: () => void;
 }
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
@@ -44,16 +46,53 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
   // Load threshold from localStorage or default to 10
   const [lowStockThreshold, setLowStockThresholdState] = useState(10);
 
+  // Keys for persistence
+  const STORAGE_KEYS = {
+    notifications: 'app_notifications_v1',
+    unread: 'app_notifications_unread_v1',
+    threshold: 'lowStockThreshold',
+    sessionTag: 'app_session_tag',
+  };
+
   // Load from localStorage after mounting to prevent hydration issues
   useEffect(() => {
     setIsMounted(true);
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('lowStockThreshold');
+      const saved = localStorage.getItem(STORAGE_KEYS.threshold);
       const threshold = saved ? parseInt(saved, 10) : 10;
-      console.log('NotificationContext - Initial threshold loaded:', threshold, 'from localStorage:', saved);
       setLowStockThresholdState(threshold);
+
+      // Restore persisted notifications
+      try {
+        const savedNotifsRaw = localStorage.getItem(STORAGE_KEYS.notifications);
+        const savedUnreadRaw = localStorage.getItem(STORAGE_KEYS.unread);
+        if (savedNotifsRaw) {
+          const parsed: any[] = JSON.parse(savedNotifsRaw);
+          // Revive timestamps
+          const revived: Notification[] = parsed.map((n) => ({
+            ...n,
+            timestamp: new Date(n.timestamp),
+          }));
+          setNotifications(revived);
+          if (savedUnreadRaw) setUnreadCount(parseInt(savedUnreadRaw, 10) || 0);
+        }
+      } catch {}
+
+      // Tag this browsing session
+      if (!localStorage.getItem(STORAGE_KEYS.sessionTag)) {
+        localStorage.setItem(STORAGE_KEYS.sessionTag, String(Date.now()));
+      }
     }
   }, []);
+
+  // Persist notifications and unread count whenever they change
+  useEffect(() => {
+    if (!isMounted) return;
+    try {
+      localStorage.setItem(STORAGE_KEYS.notifications, JSON.stringify(notifications));
+      localStorage.setItem(STORAGE_KEYS.unread, String(unreadCount));
+    } catch {}
+  }, [notifications, unreadCount, isMounted]);
 
   // Custom setter that also saves to localStorage and regenerates notifications
   const setLowStockThreshold = (threshold: number) => {
@@ -139,12 +178,31 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
 
 
   const updateNotificationState = (notifications: Notification[]) => {
-    // Sort by timestamp (newest first)
-    notifications.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
-    
-    setNotifications(notifications);
-    const unreadCount = notifications.filter(n => !n.isRead).length;
-    setUnreadCount(unreadCount);
+    // Merge with existing notifications so they aren't lost on refresh
+    setNotifications((prev) => {
+      const mergedMap = new Map<string, Notification>();
+
+      // Start from previously saved notifications (persisted)
+      for (const n of prev) {
+        mergedMap.set(n.id, n);
+      }
+
+      // Add/replace with incoming notifications
+      for (const n of notifications) {
+        mergedMap.set(n.id, n);
+      }
+
+      const merged = Array.from(mergedMap.values());
+
+      // Sort by timestamp (newest first)
+      merged.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+
+      // Update unread count based on merged list
+      const unread = merged.filter((n) => !n.isRead).length;
+      setUnreadCount(unread);
+
+      return merged;
+    });
   };
 
   const openNotification = () => {
@@ -200,6 +258,56 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
     }
   };
 
+  const addNewProductNotification = (productName: string, productId: string, isRestoration: boolean = false) => {
+    // Only apply duplicate prevention for restorations, not new products
+    if (isRestoration) {
+      // Check if we already have a recent restoration notification for this product (within last 5 minutes)
+      const recentThreshold = 5 * 60 * 1000; // 5 minutes in milliseconds
+      const now = new Date();
+      
+      const hasRecentRestoration = notifications.some(notification => 
+        notification.productId === parseInt(productId, 10) && 
+        notification.type === 'system' &&
+        notification.title === 'Product Restored' &&
+        (now.getTime() - notification.timestamp.getTime()) < recentThreshold
+      );
+
+      // Don't create duplicate restoration notifications for the same product within 5 minutes
+      if (hasRecentRestoration) {
+        console.log(`Skipping restoration notification for ${productName} - recent restoration notification already exists`);
+        return;
+      }
+    }
+
+    const notificationTitle = isRestoration ? 'Product Restored' : 'New Product Added';
+    const notificationMessage = isRestoration 
+      ? `${productName} has been restored to your inventory.`
+      : `${productName} has been added to your inventory.`;
+
+    const newNotification: Notification = {
+      id: `product_${isRestoration ? 'restored' : 'added'}_${productId}_${Date.now()}`,
+      type: 'system',
+      title: notificationTitle,
+      message: notificationMessage,
+      timestamp: new Date(),
+      isRead: false,
+      productId: parseInt(productId, 10),
+      productName: productName
+    };
+
+    setNotifications(prev => [newNotification, ...prev]);
+    setUnreadCount(prev => prev + 1);
+  };
+
+  const clearAllNotifications = () => {
+    setNotifications([]);
+    setUnreadCount(0);
+    try {
+      localStorage.removeItem(STORAGE_KEYS.notifications);
+      localStorage.removeItem(STORAGE_KEYS.unread);
+    } catch {}
+  };
+
   // Generate notifications on mount and when threshold changes
   useEffect(() => {
     if (isMounted) {
@@ -235,6 +343,8 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
     lowStockThreshold,
     setLowStockThreshold,
     forceUpdateNotifications,
+    addNewProductNotification,
+    clearAllNotifications,
   };
 
   return (

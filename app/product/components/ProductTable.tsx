@@ -30,10 +30,11 @@ interface ProductTableProps {
 
 export const ProductTable: React.FC<ProductTableProps> = ({ data, isLoading, error, onEdit, onDelete }) => {
   const columns = [
-    { key: "id", header: "#", renderCell: (_row: ProductRow, index?: number) => index ?? "" },
+    { key: "id", header: "#", sortable: false, renderCell: (_row: ProductRow, index?: number) => index ?? "" },
     {
       key: "image",
       header: "Image",
+      sortable: false,
       renderCell: (row: ProductRow) => (
         <div className="flex items-center">
           <img 
@@ -47,6 +48,7 @@ export const ProductTable: React.FC<ProductTableProps> = ({ data, isLoading, err
     { 
       key: "name", 
       header: "Product Name",
+      sortable: true,
       renderCell: (row: ProductRow) => (
         <div>
           <p className="font-medium text-gray-900 dark:text-white">{(row as any).name}</p>
@@ -56,6 +58,7 @@ export const ProductTable: React.FC<ProductTableProps> = ({ data, isLoading, err
     { 
       key: "category", 
       header: "Category",
+      sortable: true,
       renderCell: (row: ProductRow) => (
         <Chip 
           variant="flat" 
@@ -70,6 +73,7 @@ export const ProductTable: React.FC<ProductTableProps> = ({ data, isLoading, err
     { 
       key: "price", 
       header: "Price",
+      sortable: true,
       renderCell: (row: ProductRow) => {
         const price = (row as any).price;
         // Show exact MongoDB value when it is a string; only format numeric values
@@ -84,6 +88,7 @@ export const ProductTable: React.FC<ProductTableProps> = ({ data, isLoading, err
     { 
       key: "stock", 
       header: "Stock",
+      sortable: true,
       renderCell: (row: ProductRow) => {
         const stockValue = (row as any).stock;
         const stockNum = typeof stockValue === "string" ? parseInt(stockValue, 10) : stockValue ?? 0;
@@ -105,6 +110,7 @@ export const ProductTable: React.FC<ProductTableProps> = ({ data, isLoading, err
     {
       key: "status",
       header: "Status",
+      sortable: true,
       renderCell: (row: ProductRow) => (
         <StatusChip 
           status={(row as any).status} 
@@ -117,6 +123,7 @@ export const ProductTable: React.FC<ProductTableProps> = ({ data, isLoading, err
     {
       key: "actions",
       header: "Actions",
+      sortable: false,
       renderCell: (row: ProductRow) => (
         <div className="flex items-center gap-1 justify-end w-24">
           <Tooltip content="Edit" placement="top">
@@ -157,6 +164,7 @@ export const ProductTable: React.FC<ProductTableProps> = ({ data, isLoading, err
           columns={columns}
           data={[]}
           isLoading={true}
+          defaultSort={{ key: "name", direction: "asc" }}
         />
       </div>
     );
@@ -173,6 +181,7 @@ export const ProductTable: React.FC<ProductTableProps> = ({ data, isLoading, err
           columns={columns}
           data={[]}
           error={error}
+          defaultSort={{ key: "name", direction: "asc" }}
         />
       </div>
     );
@@ -187,6 +196,7 @@ export const ProductTable: React.FC<ProductTableProps> = ({ data, isLoading, err
         statusOptions={PRODUCT_STATUS_OPTIONS}
         columns={columns}
         data={data || []}
+        defaultSort={{ key: "name", direction: "asc" }}
       />
     </div>
   );

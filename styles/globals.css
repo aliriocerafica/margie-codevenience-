@@ -1,3 +1,13 @@
+/* Ensure focus rings are fully visible within overflow areas */
+.no-scrollbar:focus-within {
+  overflow: visible;
+}
+
+/* Improve focus outlines for HeroUI inputs/buttons inside tight containers */
+.focus-visible-ring :focus-visible {
+  outline: 2px solid #2563eb; /* blue-600 */
+  outline-offset: 2px;
+}
 @import "tailwindcss";
 
 @config "../tailwind.config.js"

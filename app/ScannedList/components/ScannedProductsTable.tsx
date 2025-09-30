@@ -42,8 +42,8 @@ export const ScannedProductsTable: React.FC<ScannedProductsTableProps> = ({ item
     }
 
     return (
-        <div className="overflow-hidden rounded-xl border border-gray-200 dark:border-gray-800">
-            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-800">
+        <div className="w-full overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-800">
+            <table className="min-w-[720px] w-full divide-y divide-gray-200 dark:divide-gray-800">
                 <thead className="bg-gray-50 dark:bg-gray-900/50">
                     <tr>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Product</th>

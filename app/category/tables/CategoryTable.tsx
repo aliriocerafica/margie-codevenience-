@@ -15,11 +15,23 @@ interface CategoryTableProps {
 }
 
 export const CategoryTable: React.FC<CategoryTableProps> = ({ data, isLoading, error, onEdit, onRequestDelete }) => {
+  // Enrich rows with a filterable key for product presence
+  const rows = (data || []).map((row: any) => ({
+    ...row,
+    hasProducts: (row?.productCount ?? 0) > 0 ? 'with' : 'none',
+  }));
+
+  const PRODUCT_PRESENCE_OPTIONS = [
+    { key: 'all', label: 'All' },
+    { key: 'with', label: 'With Products' },
+    { key: 'none', label: 'No Products' },
+  ];
   const columns = [
-    { key: "id", header: "#", renderCell: (_row: Category, index?: number) => index ?? "" },
+    { key: "id", header: "#", sortable: false, renderCell: (_row: Category, index?: number) => index ?? "" },
     { 
       key: "name", 
       header: "Category Name",
+      sortable: true,
       renderCell: (row: Category) => (
         <div>
           <p className="font-medium text-gray-900 dark:text-white">
@@ -36,6 +48,7 @@ export const CategoryTable: React.FC<CategoryTableProps> = ({ data, isLoading, e
     { 
       key: "productCount", 
       header: "Products",
+      sortable: true,
       renderCell: (row: Category) => (
         <div className="text-center">
           <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200">
@@ -47,6 +60,7 @@ export const CategoryTable: React.FC<CategoryTableProps> = ({ data, isLoading, e
     { 
       key: "createdAt", 
       header: "Created At",
+      sortable: true,
       renderCell: (row: any) => {
         const d = row?.createdAt ? new Date(row.createdAt) : null;
         const formatted = d ? `${d.toLocaleDateString()} ${d.toLocaleTimeString()}` : "-";
@@ -56,6 +70,7 @@ export const CategoryTable: React.FC<CategoryTableProps> = ({ data, isLoading, e
     {
       key: "actions",
       header: "Actions",
+      sortable: false,
       renderCell: (row: any) => (
         <div className="flex items-center gap-1 justify-end w-24">
           <Tooltip content="Edit" placement="top">
@@ -80,10 +95,12 @@ export const CategoryTable: React.FC<CategoryTableProps> = ({ data, isLoading, e
           filter={true}
           label="Category List"
           description="Loading categories..."
-          statusOptions={[]}
+          statusOptions={PRODUCT_PRESENCE_OPTIONS}
+          filterKey="hasProducts"
           columns={columns}
           data={[]}
           isLoading={true}
+          defaultSort={{ key: "name", direction: "asc" }}
         />
       </div>
     );
@@ -96,10 +113,12 @@ export const CategoryTable: React.FC<CategoryTableProps> = ({ data, isLoading, e
           filter={true}
           label="Category List"
           description="Failed to load categories."
-          statusOptions={[]}
+          statusOptions={PRODUCT_PRESENCE_OPTIONS}
+          filterKey="hasProducts"
           columns={columns}
           data={[]}
           error={error}
+          defaultSort={{ key: "name", direction: "asc" }}
         />
       </div>
     );
@@ -111,9 +130,11 @@ export const CategoryTable: React.FC<CategoryTableProps> = ({ data, isLoading, e
         filter={true}
         label="Category List"
         description="Organize your products into categories for better management."
-        statusOptions={[]}
+        statusOptions={PRODUCT_PRESENCE_OPTIONS}
+        filterKey="hasProducts"
         columns={columns}
-        data={data || []}
+        data={rows}
+        defaultSort={{ key: "name", direction: "asc" }}
       />
     </div>
   );

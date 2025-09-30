@@ -19,9 +19,10 @@ import { useNotifications } from '@/contexts/NotificationContext';
 interface NotificationDropdownProps {
   isOpen: boolean;
   onClose: () => void;
+  anchor?: { x: number; y: number } | null; // screen coordinates of the FAB's top-left corner
 }
 
-export default function NotificationDropdown({ isOpen, onClose }: NotificationDropdownProps) {
+export default function NotificationDropdown({ isOpen, onClose, anchor }: NotificationDropdownProps) {
   const { 
     notifications, 
     unreadCount, 
@@ -102,9 +103,45 @@ export default function NotificationDropdown({ isOpen, onClose }: NotificationDr
 
   if (!isOpen) return null;
 
+  // Compute dynamic position near the floating bell and keep within viewport horizontally
+  let wrapperStyle: React.CSSProperties | undefined;
+  let panelWidth = 384; // default 24rem
+  if (typeof window !== 'undefined') {
+    panelWidth = Math.min(360, Math.max(280, window.innerWidth - 16)); // 16px margin
+  }
+  if (anchor) {
+    const margin = 8;
+    const fabSize = 56;
+    const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : 1024;
+    const viewportHeight = typeof window !== 'undefined' ? window.innerHeight : 768;
+    const fabCenterX = anchor.x + fabSize / 2;
+    const desiredLeft = fabCenterX - panelWidth / 2;
+    const clampedLeft = Math.min(Math.max(margin, desiredLeft), viewportWidth - panelWidth - margin);
+
+    const placeAbove = anchor.y > viewportHeight / 2;
+
+    const base: React.CSSProperties = {
+      left: clampedLeft,
+      width: panelWidth,
+    };
+    if (placeAbove) {
+      // Position using bottom so the panel sits fully above the bell regardless of its height
+      base.bottom = Math.max(margin, viewportHeight - anchor.y + 12);
+    } else {
+      // Place below the bell
+      base.top = anchor.y + fabSize + 12;
+    }
+
+    wrapperStyle = base;
+  }
+
   return (
     <div className="fixed inset-0 z-50 animate-in fade-in-0 duration-200" onClick={onClose}>
-      <div className="absolute bottom-24 right-1/2 translate-x-1/2 sm:right-6 sm:translate-x-0 w-96 max-w-[calc(100vw-1rem)] sm:max-w-96 max-h-[calc(100vh-8rem)] overflow-hidden animate-in slide-in-from-bottom-4 fade-in-0 duration-300 ease-out">
+      <div
+        className="fixed max-h-[calc(100vh-8rem)] overflow-hidden animate-in slide-in-from-bottom-4 fade-in-0 duration-300 ease-out"
+        style={wrapperStyle}
+        onClick={(e) => e.stopPropagation()}
+      >
         <Card className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 shadow-xl transform transition-all duration-300 hover:shadow-2xl">
           <CardHeader className="pb-2 animate-in slide-in-from-top-2 fade-in-0 duration-400 delay-100">
             <div className="flex items-center justify-between w-full">

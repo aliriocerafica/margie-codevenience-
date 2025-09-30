@@ -37,7 +37,8 @@ import {
     Search,
     Tag,
     ScanLine,
-    Barcode
+    Barcode,
+    TrendingUp
 } from "lucide-react";
 import Link from "next/link";
 import { ThemeSwitch } from "./ThemeSwitch";
@@ -46,6 +47,7 @@ import { useSearch } from "@/contexts/SearchContext";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import StockAlertSettings from "./StockAlertSettings";
 import { signOut } from "next-auth/react";
+import { useNotifications } from "@/contexts/NotificationContext";
 
 interface SidebarProps {
     children: React.ReactNode;
@@ -60,6 +62,7 @@ export default function Sidebar({ children }: SidebarProps) {
     const router = useRouter();
     const { openSearchModal } = useSearch();
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+    const { clearAllNotifications } = useNotifications();
     
     // Enable keyboard shortcuts
     useKeyboardShortcuts();
@@ -81,17 +84,17 @@ export default function Sidebar({ children }: SidebarProps) {
             icon: Tag,
         },
         {
-            name: "Users",
+            name: "Team",
             href: "/users",
             icon: User,
         },
         {
-            name: "Scan QR",
+            name: "Scan Items",
             href: "/scanqr",
             icon: ScanLine,
         },
         {
-            name: "Scanned List",
+            name: "Checkout",
             href: "/ScannedList",
             icon: Barcode,
         },
@@ -102,14 +105,19 @@ export default function Sidebar({ children }: SidebarProps) {
             hasNotification: true,
         },
         {
-            name: "Suppliers",
+            name: "Vendors",
             href: "/suppliers",
             icon: Truck,
         },
         {
+            name: "Analytics",
+            href: "/analytics",
+            icon: BarChart3,
+        },
+        {
             name: "Reports",
             href: "/reports",
-            icon: BarChart3,
+            icon: TrendingUp,
         },
     ];
 
@@ -121,7 +129,7 @@ export default function Sidebar({ children }: SidebarProps) {
             hasNotification: false,
         },
         {
-            name: "Support",
+            name: "Help & Support",
             icon: HelpCircle,
             hasNotification: false,
         },
@@ -134,6 +142,9 @@ export default function Sidebar({ children }: SidebarProps) {
             // Clear remember me data from localStorage
             localStorage.removeItem('rememberMe');
             localStorage.removeItem('rememberedEmail');
+            
+            // Clear all notifications on logout
+            clearAllNotifications();
             
             // Use NextAuth signOut function
             await signOut({ 
@@ -514,7 +525,7 @@ export default function Sidebar({ children }: SidebarProps) {
             )}
 
             {/* Main Content */}
-            <div className="flex flex-col flex-1 overflow-hidden">
+            <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
                 {/* Mobile Menu Toggle - Only visible on mobile */}
                 <div className="md:hidden bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 py-3 flex items-center justify-between">
                     <Button
@@ -540,7 +551,7 @@ export default function Sidebar({ children }: SidebarProps) {
                 </div>
 
                 {/* Page Content */}
-                <main className="flex-1 relative overflow-y-auto focus:outline-none bg-gray-50 dark:bg-gray-950">
+                <main className="flex-1 min-h-0 relative overflow-y-auto focus:outline-none bg-gray-50 dark:bg-gray-950">
                     <div className="py-4 md:py-6">
                         <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8">
                             {children}

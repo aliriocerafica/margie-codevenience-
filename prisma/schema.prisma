@@ -28,6 +28,7 @@ model Product {
   updatedAt  DateTime @updatedAt
   categoryId String   @db.ObjectId
   category   Category @relation(fields: [categoryId], references: [id])
+  movements  StockMovement[]
 }
 
 model Category {
@@ -36,4 +37,18 @@ model Category {
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   products  Product[]
+}
+
+model StockMovement {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  productId   String   @db.ObjectId
+  product     Product  @relation(fields: [productId], references: [id])
+  type        String   // "sale" | "refund" | "manual" | "void"
+  quantity    Int      // negative for sale, positive for refund
+  beforeStock Int
+  afterStock  Int
+  refId       String?  // orderId or reference id
+  reason      String?
+  userId      String?
+  createdAt   DateTime @default(now())
 }

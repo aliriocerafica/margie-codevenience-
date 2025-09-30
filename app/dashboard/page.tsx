@@ -28,9 +28,7 @@ export default function DashboardPage() {
 	const { data: statsData, error: statsError, isLoading: statsLoading } = useSWR<{ products: number; orders: number; users: number }>("/api/dashboard", fetcher);
 	const { data: recentProductsData, error: productsError, isLoading: productsLoading } = useSWR<any[]>("/api/product", fetcher);
 
-	const handlePageClick = () => {
-		router.push("/");
-	};
+    // Removed global click navigation that interfered with in-page links
 
 	// Map stats to widget shape
 	const stats: DashboardStat[] = React.useMemo(() => {
@@ -61,8 +59,8 @@ export default function DashboardPage() {
 		}));
 	}, [recentProductsData]);
 
-	return (
-		<div className="space-y-6" onClick={handlePageClick}>
+    return (
+        <div className="space-y-6">
 			{/* Header */}
 			<PageHeader 
 				title="Dashboard"

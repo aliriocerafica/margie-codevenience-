@@ -276,10 +276,10 @@ export default function StockAlertSettings({ isOpen, onClose }: StockAlertSettin
         <ModalHeader className="flex flex-col gap-1">
           <div className="flex items-center gap-2">
             <Settings className="w-5 h-5 text-[#003366] dark:text-[#4A90E2]" />
-            <span className="text-lg font-semibold">Stock Alert Settings</span>
+            <span className="text-lg font-semibold">General Settings</span>
           </div>
           <p className="text-sm text-gray-600 dark:text-gray-400 font-normal">
-            Configure stock alerts and email notifications for your inventory
+            Configure application preferences including stock alerts and notifications
           </p>
         </ModalHeader>
         

@@ -23,6 +23,7 @@ import {
   Image as ImageIcon,
   Loader2
 } from 'lucide-react';
+import { useNotifications } from '@/contexts/NotificationContext';
 
 interface AddProductModalProps {
   isOpen: boolean;
@@ -54,7 +55,14 @@ export default function AddProductModal({ isOpen, onClose, onProductAdded }: Add
   const [previewImage, setPreviewImage] = useState<string>('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const { refreshNotifications, addNewProductNotification } = useNotifications();
   const [isDragOver, setIsDragOver] = useState(false);
+  const [restorationData, setRestorationData] = useState<{
+    restoreId: string;
+    restoreName: string;
+    restoreBarcode: string;
+    canRestore: boolean;
+  } | null>(null);
 
   const [formData, setFormData] = useState<ProductFormData>({
     name: '',
@@ -303,6 +311,85 @@ export default function AddProductModal({ isOpen, onClose, onProductAdded }: Add
     }, 5000);
   };
 
+  const handleRestore = async () => {
+    if (!restorationData) return;
+    
+    setSaving(true);
+    
+    try {
+      const restoreData = {
+        id: restorationData.restoreId,
+        name: formData.name.trim(),
+        price: parseFloat(formData.price.trim()).toString(),
+        stock: formData.stock.trim(),
+        barcode: formData.barcode.trim() || null,
+        categoryId: formData.categoryId,
+        imageUrl: formData.image || null
+      };
+
+      const restoreResponse = await fetch('/api/product/restore', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(restoreData),
+      });
+
+      if (!restoreResponse.ok) {
+        const errorData = await restoreResponse.json();
+        throw new Error(errorData.details || errorData.error || 'Failed to restore product');
+      }
+
+      const result = await restoreResponse.json();
+
+      showNotification({
+        title: "Product Restored Successfully!",
+        description: `${formData.name} has been restored to your inventory.`,
+        type: "success"
+      });
+
+      // Reset form and restoration data
+      setFormData({
+        name: '',
+        price: '',
+        stock: '',
+        barcode: '',
+        categoryId: '',
+        image: ''
+      });
+      setPreviewImage('');
+      setSelectedFile(null);
+      setErrors({});
+      setRestorationData(null);
+
+      // Call callback if provided
+      if (onProductAdded) {
+        onProductAdded(result.product);
+      }
+
+      // Add restoration notification and refresh stock alerts
+      try {
+        await addNewProductNotification(result.product.name, result.product.id, true); // true = isRestoration
+        // Force refresh notifications to ensure they're updated
+        await new Promise(resolve => setTimeout(resolve, 100)); // Small delay
+        await refreshNotifications();
+      } catch (notificationError) {
+        console.error('Error adding notification:', notificationError);
+      }
+
+      onClose();
+    } catch (error) {
+      console.error('Restoration error:', error);
+      showNotification({
+        title: "Restoration Failed",
+        description: error instanceof Error ? error.message : 'Failed to restore product',
+        type: "error"
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleSubmit = async () => {
     if (!validateForm()) {
       return;
@@ -333,13 +420,22 @@ export default function AddProductModal({ isOpen, onClose, onProductAdded }: Add
         body: JSON.stringify(productData),
       });
 
-      console.log('Product response status:', productResponse.status);
-      console.log('Product response ok:', productResponse.ok);
 
       if (!productResponse.ok) {
         const errorData = await productResponse.json();
-        console.error('Product creation error:', errorData);
-        throw new Error(errorData.error || 'Failed to create product');
+        
+        // Check if this is a restoration opportunity
+        if (errorData.canRestore && errorData.restoreId) {
+          setRestorationData({
+            restoreId: errorData.restoreId,
+            restoreName: errorData.restoreName,
+            restoreBarcode: errorData.restoreBarcode,
+            canRestore: errorData.canRestore
+          });
+          return; // Don't throw error, show restoration option
+        }
+        
+        throw new Error(errorData.details || errorData.error || 'Failed to create product');
       }
 
       const result = await productResponse.json();
@@ -367,6 +463,10 @@ export default function AddProductModal({ isOpen, onClose, onProductAdded }: Add
       if (onProductAdded) {
         onProductAdded(result.product);
       }
+
+      // Add new product notification and refresh stock alerts
+      addNewProductNotification(result.product.name, result.product.id);
+      try { await refreshNotifications(); } catch {}
 
       onClose();
 
@@ -630,6 +730,48 @@ export default function AddProductModal({ isOpen, onClose, onProductAdded }: Add
           </div>
         </ModalBody>
 
+        {/* Restoration Alert */}
+        {restorationData && (
+          <div className="mx-6 mb-4 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+            <div className="flex items-start gap-3">
+              <div className="flex-shrink-0">
+                <svg className="w-5 h-5 text-amber-600 dark:text-amber-400" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <h3 className="text-sm font-semibold text-amber-800 dark:text-amber-200">
+                  Product Restoration Available
+                </h3>
+                <p className="mt-1 text-sm text-amber-700 dark:text-amber-300">
+                  A deleted product with barcode "{restorationData.restoreBarcode}" exists ({restorationData.restoreName}). 
+                  Would you like to restore it instead of creating a new one?
+                </p>
+                <div className="mt-3 flex gap-2">
+                  <Button
+                    size="sm"
+                    color="warning"
+                    variant="flat"
+                    onPress={handleRestore}
+                    isLoading={saving}
+                    startContent={!saving && <CheckCircle className="w-4 h-4" />}
+                  >
+                    {saving ? 'Restoring...' : 'Restore Product'}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="light"
+                    onPress={() => setRestorationData(null)}
+                    isDisabled={saving}
+                  >
+                    Create New Instead
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         <ModalFooter className="justify-end gap-2">
           <Button
             variant="light"
@@ -642,7 +784,7 @@ export default function AddProductModal({ isOpen, onClose, onProductAdded }: Add
             color="primary"
             onPress={handleSubmit}
             isLoading={saving}
-            isDisabled={uploading}
+            isDisabled={uploading || restorationData !== null}
             startContent={!saving && <CheckCircle className="w-4 h-4" />}
           >
             {saving ? 'Creating Product...' : 'Create Product'}
