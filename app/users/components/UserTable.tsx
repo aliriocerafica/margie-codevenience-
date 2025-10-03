@@ -1,7 +1,8 @@
 "use client";
 
 import React from "react";
-import { Chip } from "@heroui/react";
+import { Chip, Button, Tooltip } from "@heroui/react";
+import { Edit } from "lucide-react";
 
 import DataTable from "@/components/DataTable";
 
@@ -17,6 +18,7 @@ interface UserTableProps {
   data: User[] | undefined;
   isLoading?: boolean;
   error?: any;
+  onEdit?: (user: User) => void;
 }
 
 const USER_ROLE_COLORS = {
@@ -34,6 +36,7 @@ export const UserTable: React.FC<UserTableProps> = ({
   data,
   isLoading,
   error,
+  onEdit,
 }) => {
   // Transform data to include status field that matches role for filtering
   const transformedData = data?.map((user) => ({
@@ -102,6 +105,25 @@ export const UserTable: React.FC<UserTableProps> = ({
           <p className="text-xs text-gray-500 dark:text-gray-400">
             {new Date(row.updatedAt).toLocaleTimeString()}
           </p>
+        </div>
+      ),
+    },
+    {
+      key: "actions",
+      header: "Actions",
+      renderCell: (row: User) => (
+        <div className="flex items-center gap-1 justify-end w-24">
+          <Tooltip content="Edit" placement="top">
+            <Button
+              isIconOnly
+              size="sm"
+              variant="flat"
+              color="primary"
+              onPress={() => onEdit?.(row)}
+            >
+              <Edit size={16} />
+            </Button>
+          </Tooltip>
         </div>
       ),
     },

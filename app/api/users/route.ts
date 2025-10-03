@@ -77,3 +77,88 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
+
+export async function PATCH(req: Request) {
+  try {
+    const body = await req.json();
+    const { id, email, role, password } = body as {
+      id?: string;
+      email?: string;
+      role?: string;
+      password?: string;
+    };
+
+    if (!id) {
+      return NextResponse.json(
+        { error: "Missing user id" },
+        { status: 400 }
+      );
+    }
+
+    // Ensure user exists
+    const existingUser = await prisma.user.findUnique({ where: { id } });
+    if (!existingUser) {
+      return NextResponse.json(
+        { error: "User not found" },
+        { status: 404 }
+      );
+    }
+
+    const dataToUpdate: any = {};
+
+    if (email && email !== existingUser.email) {
+      // Check uniqueness of email
+      const emailTaken = await prisma.user.findUnique({ where: { email } });
+      if (emailTaken && emailTaken.id !== id) {
+        return NextResponse.json(
+          { error: "Email is already in use" },
+          { status: 400 }
+        );
+      }
+      dataToUpdate.email = email;
+    }
+
+    if (role && role !== existingUser.role) {
+      dataToUpdate.role = role;
+    }
+
+    if (password && password.length > 0) {
+      const bcrypt = require("bcryptjs");
+      const hashedPassword = await bcrypt.hash(password, 10);
+      dataToUpdate.password = hashedPassword;
+    }
+
+    if (Object.keys(dataToUpdate).length === 0) {
+      return NextResponse.json(
+        { message: "No changes provided", user: {
+          id: existingUser.id,
+          email: existingUser.email,
+          role: existingUser.role,
+          createdAt: existingUser.createdAt,
+          updatedAt: existingUser.updatedAt,
+        } },
+        { status: 200 }
+      );
+    }
+
+    const updated = await prisma.user.update({
+      where: { id },
+      data: dataToUpdate,
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        createdAt: true,
+        updatedAt: true,
+      }
+    });
+
+    return NextResponse.json(
+      { message: "User updated successfully", user: updated },
+      { status: 200 }
+    );
+  } catch (error) {
+    console.error("Update user error:", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
+}

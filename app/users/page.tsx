@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { UserTable } from "./tables/UserTable";
 import { AddUserModal } from "./components/AddUserModal";
+import { EditUserModal } from "./components/EditUserModal";
 import { Button } from "@heroui/button";
 import { UserPlus } from "lucide-react";
 import { usePageHighlight } from "@/hooks/usePageHighlight";
@@ -20,6 +21,8 @@ export default function UsersPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
 
   // Enable page highlighting for search results
   usePageHighlight();
@@ -54,6 +57,17 @@ export default function UsersPage() {
     setIsAddModalOpen(false);
   };
 
+  const handleEdit = (user: User) => {
+    setSelectedUser(user);
+    setIsEditModalOpen(true);
+  };
+
+  const handleUserUpdated = (updated: User) => {
+    setUsers(prev => prev.map(u => (u.id === updated.id ? updated : u)));
+    setIsEditModalOpen(false);
+    setSelectedUser(null);
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -81,6 +95,7 @@ export default function UsersPage() {
         data={users}
         isLoading={isLoading}
         error={error}
+        onEdit={handleEdit}
       />
 
       {/* Add User Modal */}
@@ -88,6 +103,13 @@ export default function UsersPage() {
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
         onUserAdded={handleUserAdded}
+      />
+
+      <EditUserModal
+        isOpen={isEditModalOpen}
+        user={selectedUser}
+        onClose={() => { setIsEditModalOpen(false); setSelectedUser(null); }}
+        onUserUpdated={handleUserUpdated}
       />
     </div>
   );
