@@ -2,7 +2,7 @@
 
 import React from "react";
 import { Chip, Button, Tooltip } from "@heroui/react";
-import { Edit } from "lucide-react";
+import { Edit, Trash2 } from "lucide-react";
 
 import DataTable from "@/components/DataTable";
 
@@ -19,6 +19,7 @@ interface UserTableProps {
   isLoading?: boolean;
   error?: any;
   onEdit?: (user: User) => void;
+  onDelete?: (user: User) => void;
 }
 
 const USER_ROLE_COLORS = {
@@ -37,6 +38,7 @@ export const UserTable: React.FC<UserTableProps> = ({
   isLoading,
   error,
   onEdit,
+  onDelete,
 }) => {
   // Transform data to include status field that matches role for filtering
   const transformedData = data?.map((user) => ({
@@ -122,6 +124,17 @@ export const UserTable: React.FC<UserTableProps> = ({
               onPress={() => onEdit?.(row)}
             >
               <Edit size={16} />
+            </Button>
+          </Tooltip>
+          <Tooltip content="Delete" placement="top">
+            <Button
+              isIconOnly
+              size="sm"
+              variant="flat"
+              color="danger"
+              onPress={() => onDelete?.(row)}
+            >
+              <Trash2 size={16} />
             </Button>
           </Tooltip>
         </div>

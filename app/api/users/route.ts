@@ -162,3 +162,36 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
+
+export async function DELETE(req: Request) {
+  try {
+    let id: string | undefined;
+    // Support id via query string or JSON body
+    const url = new URL(req.url);
+    id = url.searchParams.get("id") || undefined;
+    if (!id) {
+      try {
+        const body = await req.json();
+        id = body?.id;
+      } catch (_) {
+        // ignore body parse errors; we'll validate id below
+      }
+    }
+
+    if (!id) {
+      return NextResponse.json({ error: "Missing user id" }, { status: 400 });
+    }
+
+    const existing = await prisma.user.findUnique({ where: { id } });
+    if (!existing) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    await prisma.user.delete({ where: { id } });
+
+    return NextResponse.json({ message: "User deleted" }, { status: 200 });
+  } catch (error) {
+    console.error("Delete user error:", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
+}
