@@ -25,7 +25,7 @@ export default function SignupPage() {
     useEffect(() => {
         const remembered = localStorage.getItem('rememberMe');
         const rememberedEmail = localStorage.getItem('rememberedEmail');
-        
+
         if (remembered === 'true' && rememberedEmail) {
             setRememberMe(true);
             setEmail(rememberedEmail);
@@ -62,7 +62,7 @@ export default function SignupPage() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        
+
         const emailValidation = validateEmail(email);
         const passwordValidation = validatePassword(password);
 
@@ -237,7 +237,7 @@ export default function SignupPage() {
                                     >
                                         Remember me
                                     </Checkbox>
-                                    
+
                                     <button
                                         type="button"
                                         onClick={() => router.push("/forgot-password")}
@@ -269,14 +269,14 @@ export default function SignupPage() {
                                 )}
 
                                 {/* Sign up link */}
-                                <div className="text-center pt-4">
+                                {/* <div className="text-center pt-4">
                                     <p className="text-gray-600 text-sm">
                                         Don't have an account?{" "}
                                         <a href="/signup" className="text-[#003366] hover:text-[#004488] font-semibold hover:underline transition-colors">
                                             Sign up here
                                         </a>
                                     </p>
-                                </div>
+                                </div> */}
                             </form>
                         </CardBody>
                     </Card>
