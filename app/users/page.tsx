@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { UserTable } from "./tables/UserTable";
+import { UserTable } from "./components/UserTable";
 import { AddUserModal } from "./components/AddUserModal";
 import { EditUserModal } from "./components/EditUserModal";
 import { Button } from "@heroui/button";
@@ -76,7 +76,7 @@ export default function UsersPage() {
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">User Management</h1>
           <p className="text-gray-600 dark:text-gray-400 mt-1 text-sm sm:text-base">Manage system users and their roles</p>
         </div>
-        
+
         <div className="flex-shrink-0">
           <Button
             color="primary"
@@ -91,7 +91,7 @@ export default function UsersPage() {
       </div>
 
       {/* User Table */}
-      <UserTable 
+      <UserTable
         data={users}
         isLoading={isLoading}
         error={error}
