@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { UserTable } from "./components/UserTable";
 import { AddUserModal } from "./components/AddUserModal";
 import { EditUserModal } from "./components/EditUserModal";
+import { DeleteUserModal } from "./components/DeleteUserModal";
 import { Button } from "@heroui/button";
 import { UserPlus } from "lucide-react";
 import { usePageHighlight } from "@/hooks/usePageHighlight";
@@ -22,6 +23,7 @@ export default function UsersPage() {
   const [error, setError] = useState<string | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
 
   // Enable page highlighting for search results
@@ -62,8 +64,19 @@ export default function UsersPage() {
     setIsEditModalOpen(true);
   };
 
+  const handleRequestDelete = (user: User) => {
+    setSelectedUser(user);
+    setIsDeleteModalOpen(true);
+  };
+
   const handleUserUpdated = (updated: User) => {
     setUsers(prev => prev.map(u => (u.id === updated.id ? updated : u)));
+    setIsEditModalOpen(false);
+    setSelectedUser(null);
+  };
+
+  const handleUserDeleted = (userId: string) => {
+    setUsers(prev => prev.filter(u => u.id !== userId));
     setIsEditModalOpen(false);
     setSelectedUser(null);
   };
@@ -96,6 +109,7 @@ export default function UsersPage() {
         isLoading={isLoading}
         error={error}
         onEdit={handleEdit}
+        onDelete={handleRequestDelete}
       />
 
       {/* Add User Modal */}
@@ -110,6 +124,13 @@ export default function UsersPage() {
         user={selectedUser}
         onClose={() => { setIsEditModalOpen(false); setSelectedUser(null); }}
         onUserUpdated={handleUserUpdated}
+      />
+
+      <DeleteUserModal
+        isOpen={isDeleteModalOpen}
+        user={selectedUser ? { id: selectedUser.id, email: selectedUser.email } : null}
+        onClose={() => { setIsDeleteModalOpen(false); setSelectedUser(null); }}
+        onDeleted={handleUserDeleted}
       />
     </div>
   );

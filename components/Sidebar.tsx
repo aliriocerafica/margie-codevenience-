@@ -19,13 +19,13 @@ import {
     Divider,
     Input,
 } from "@heroui/react";
-import { 
-    Home, 
-    Package, 
+import {
+    Home,
+    Package,
     Calendar,
     Truck,
-    BarChart3, 
-    Settings, 
+    BarChart3,
+    Settings,
     LogOut,
     Menu,
     X,
@@ -48,12 +48,14 @@ import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import StockAlertSettings from "./StockAlertSettings";
 import { signOut } from "next-auth/react";
 import { useNotifications } from "@/contexts/NotificationContext";
+import { useSession } from "next-auth/react"
 
 interface SidebarProps {
     children: React.ReactNode;
 }
 
 export default function Sidebar({ children }: SidebarProps) {
+    const { data: session, status } = useSession()
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
@@ -63,7 +65,7 @@ export default function Sidebar({ children }: SidebarProps) {
     const { openSearchModal } = useSearch();
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const { clearAllNotifications } = useNotifications();
-    
+
     // Enable keyboard shortcuts
     useKeyboardShortcuts();
 
@@ -137,32 +139,22 @@ export default function Sidebar({ children }: SidebarProps) {
 
     const handleLogout = async () => {
         setIsLoading(true);
-        
         try {
             // Clear remember me data from localStorage
             localStorage.removeItem('rememberMe');
             localStorage.removeItem('rememberedEmail');
-            
+
             // Clear all notifications on logout
             clearAllNotifications();
-            
-            // Use NextAuth signOut function
-            await signOut({ 
-                redirect: false // Don't auto-redirect, we'll handle it manually
-            });
-            
-            // Small delay for visual feedback
-            setTimeout(() => {
-                setIsLoading(false);
-                // Redirect to login page
-                router.push('/');
-            }, 1000);
-            
+
+            // Delegate redirect to Auth.js so cookies/state are fully cleared
+            await signOut({ callbackUrl: '/' });
         } catch (error) {
             console.error('Logout error:', error);
+            // Hard fallback
+            window.location.href = '/';
+        } finally {
             setIsLoading(false);
-            // Fallback redirect even if signOut fails
-            router.push('/');
         }
     };
 
@@ -176,8 +168,13 @@ export default function Sidebar({ children }: SidebarProps) {
         openSearchModal();
     };
 
+    // Role-based filtering: hide Products, Categories, and Team for Staff
+    const baseMenuItems = ((session as any)?.user?.role === 'Staff' || status === 'loading')
+        ? menuItems.filter((item) => !["Products", "Categories", "Team"].includes(item.name))
+        : menuItems;
+
     // Filter menu items based on local search query (for sidebar filtering)
-    const filteredMenuItems = menuItems.filter(item =>
+    const filteredMenuItems = baseMenuItems.filter(item =>
         item.name.toLowerCase().includes(localSearchQuery.toLowerCase())
     );
 
@@ -188,16 +185,15 @@ export default function Sidebar({ children }: SidebarProps) {
     return (
         <div className="flex h-screen bg-gray-50 dark:bg-gray-950 overflow-hidden">
             {/* Desktop Sidebar */}
-            <div className={`hidden md:flex md:flex-col transition-all duration-300 relative ${
-                isCollapsed ? 'md:w-20 lg:w-20' : 'md:w-72 lg:w-72'
-            }`}>
+            <div className={`hidden md:flex md:flex-col transition-all duration-300 relative ${isCollapsed ? 'md:w-20 lg:w-20' : 'md:w-72 lg:w-72'
+                }`}>
                 <div className="flex flex-col flex-grow bg-gradient-to-b from-[#003366] to-[#004488] overflow-y-auto">
                     {/* Header */}
                     <div className="flex items-center justify-between p-4 border-b border-white/20 h-16">
                         <div className="flex items-center gap-3 min-w-0">
-                            <img 
-                                src="/LogoWhite.png" 
-                                alt="Logo" 
+                            <img
+                                src="/LogoWhite.png"
+                                alt="Logo"
                                 className="w-8 h-8 object-contain flex-shrink-0"
                             />
                             {!isCollapsed && (
@@ -228,16 +224,15 @@ export default function Sidebar({ children }: SidebarProps) {
                         {filteredMenuItems.map((item) => {
                             const Icon = item.icon;
                             const isActive = pathname === item.href;
-                            
+
                             return (
                                 <Link
                                     key={item.name}
                                     href={item.href}
-                                    className={`group flex items-center px-3 py-3 text-sm font-medium rounded-lg transition-all duration-200 relative ${
-                                        isActive
-                                            ? "bg-white/20 text-white"
-                                            : "text-white/80 hover:bg-white/10 hover:text-white"
-                                    } ${isCollapsed ? 'justify-center' : ''}`}
+                                    className={`group flex items-center px-3 py-3 text-sm font-medium rounded-lg transition-all duration-200 relative ${isActive
+                                        ? "bg-white/20 text-white"
+                                        : "text-white/80 hover:bg-white/10 hover:text-white"
+                                        } ${isCollapsed ? 'justify-center' : ''}`}
                                     title={isCollapsed ? item.name : ''}
                                 >
                                     <div className="relative flex-shrink-0">
@@ -263,14 +258,13 @@ export default function Sidebar({ children }: SidebarProps) {
                     <nav className="p-4 space-y-2">
                         {filteredUtilityItems.map((item) => {
                             const Icon = item.icon;
-                            
+
                             return (
                                 <button
                                     key={item.name}
                                     onClick={item.onClick}
-                                    className={`group flex items-center px-3 py-3 text-sm font-medium rounded-lg transition-all duration-200 text-white/80 hover:bg-white/10 hover:text-white w-full ${
-                                        isCollapsed ? 'justify-center' : ''
-                                    }`}
+                                    className={`group flex items-center px-3 py-3 text-sm font-medium rounded-lg transition-all duration-200 text-white/80 hover:bg-white/10 hover:text-white w-full ${isCollapsed ? 'justify-center' : ''
+                                        }`}
                                     title={isCollapsed ? item.name : ''}
                                 >
                                     <div className="relative flex-shrink-0">
@@ -306,8 +300,8 @@ export default function Sidebar({ children }: SidebarProps) {
                                         </Button>
                                     </DropdownTrigger>
                                     <DropdownMenu aria-label="User menu">
-                                        <DropdownItem 
-                                            key="profile" 
+                                        <DropdownItem
+                                            key="profile"
                                             startContent={<User className="h-4 w-4" />}
                                             onPress={() => router.push("/profile")}
                                         >
@@ -316,9 +310,9 @@ export default function Sidebar({ children }: SidebarProps) {
                                         <DropdownItem key="settings" startContent={<Settings className="h-4 w-4" />}>
                                             Settings
                                         </DropdownItem>
-                                        <DropdownItem 
-                                            key="logout" 
-                                            className="text-danger" 
+                                        <DropdownItem
+                                            key="logout"
+                                            className="text-danger"
                                             color="danger"
                                             startContent={isLoading ? <Spinner size="sm" /> : <LogOut className="h-4 w-4" />}
                                             onPress={handleLogout}
@@ -344,14 +338,14 @@ export default function Sidebar({ children }: SidebarProps) {
                                             <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center">
                                                 Welcome back 👋
                                             </p>
-                                            <p className="text-sm font-medium text-gray-900 dark:text-gray-100">Johnathan</p>
+                                            <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{session?.user.role}</p>
                                         </div>
                                         <ChevronRight className="h-4 w-4 ml-auto text-gray-400" />
                                     </Button>
                                 </DropdownTrigger>
                                 <DropdownMenu aria-label="User menu">
-                                    <DropdownItem 
-                                        key="profile" 
+                                    <DropdownItem
+                                        key="profile"
                                         startContent={<User className="h-4 w-4" />}
                                         onPress={() => router.push("/profile")}
                                     >
@@ -360,9 +354,9 @@ export default function Sidebar({ children }: SidebarProps) {
                                     <DropdownItem key="settings" startContent={<Settings className="h-4 w-4" />}>
                                         Settings
                                     </DropdownItem>
-                                    <DropdownItem 
-                                        key="logout" 
-                                        className="text-danger" 
+                                    <DropdownItem
+                                        key="logout"
+                                        className="text-danger"
                                         color="danger"
                                         startContent={isLoading ? <Spinner size="sm" /> : <LogOut className="h-4 w-4" />}
                                         onPress={handleLogout}
@@ -390,17 +384,17 @@ export default function Sidebar({ children }: SidebarProps) {
             {/* Mobile Sidebar Overlay */}
             {isMenuOpen && (
                 <div className="fixed inset-0 z-50 md:hidden">
-                    <div 
-                        className="fixed inset-0 bg-black/30 backdrop-blur-sm transition-all duration-300" 
-                        onClick={() => setIsMenuOpen(false)} 
+                    <div
+                        className="fixed inset-0 bg-black/30 backdrop-blur-sm transition-all duration-300"
+                        onClick={() => setIsMenuOpen(false)}
                     />
-                                    <div className="relative flex flex-col w-80 max-w-[85vw] h-full bg-gradient-to-b from-[#003366] to-[#004488] shadow-xl">
+                    <div className="relative flex flex-col w-80 max-w-[85vw] h-full bg-gradient-to-b from-[#003366] to-[#004488] shadow-xl">
                         {/* Mobile Header */}
                         <div className="flex items-center justify-between p-4 border-b border-white/20">
                             <div className="flex items-center">
-                                <img 
-                                    src="/LogoWhite.png" 
-                                    alt="Logo" 
+                                <img
+                                    src="/LogoWhite.png"
+                                    alt="Logo"
                                     className="w-8 h-8 object-contain flex-shrink-0"
                                 />
                                 <span className="ml-3 text-lg font-bold text-white">
@@ -422,20 +416,19 @@ export default function Sidebar({ children }: SidebarProps) {
 
                         {/* Mobile Navigation */}
                         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-                            {menuItems.map((item) => {
+                            {filteredMenuItems.map((item) => {
                                 const Icon = item.icon;
                                 const isActive = pathname === item.href;
-                                
+
                                 return (
                                     <Link
                                         key={item.name}
                                         href={item.href}
                                         onClick={() => setIsMenuOpen(false)}
-                                        className={`group flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-all duration-200 relative ${
-                                            isActive
-                                                ? "bg-white/20 text-white"
-                                                : "text-white/80 hover:bg-white/10 hover:text-white"
-                                        }`}
+                                        className={`group flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-all duration-200 relative ${isActive
+                                            ? "bg-white/20 text-white"
+                                            : "text-white/80 hover:bg-white/10 hover:text-white"
+                                            }`}
                                     >
                                         <div className="relative flex-shrink-0">
                                             <Icon className="h-5 w-5" />
@@ -456,7 +449,7 @@ export default function Sidebar({ children }: SidebarProps) {
                         <nav className="p-4 space-y-1">
                             {utilityItems.map((item) => {
                                 const Icon = item.icon;
-                                
+
                                 return (
                                     <button
                                         key={item.name}
@@ -492,14 +485,14 @@ export default function Sidebar({ children }: SidebarProps) {
                                             <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center">
                                                 Welcome back 👋
                                             </p>
-                                            <p className="text-sm font-medium text-gray-900 dark:text-gray-100">Johnathan</p>
+                                            <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{session?.user.role}</p>
                                         </div>
                                         <ChevronRight className="h-4 w-4 ml-auto text-gray-400" />
                                     </Button>
                                 </DropdownTrigger>
                                 <DropdownMenu aria-label="User menu">
-                                    <DropdownItem 
-                                        key="profile" 
+                                    <DropdownItem
+                                        key="profile"
                                         startContent={<User className="h-4 w-4" />}
                                         onPress={() => router.push("/profile")}
                                     >
@@ -508,9 +501,9 @@ export default function Sidebar({ children }: SidebarProps) {
                                     <DropdownItem key="settings" startContent={<Settings className="h-4 w-4" />}>
                                         Settings
                                     </DropdownItem>
-                                    <DropdownItem 
-                                        key="logout" 
-                                        className="text-danger" 
+                                    <DropdownItem
+                                        key="logout"
+                                        className="text-danger"
                                         color="danger"
                                         startContent={isLoading ? <Spinner size="sm" /> : <LogOut className="h-4 w-4" />}
                                         onPress={handleLogout}
@@ -538,9 +531,9 @@ export default function Sidebar({ children }: SidebarProps) {
                     </Button>
                     <div className="flex items-center">
                         <div className="w-6 h-6 bg-[#003366] rounded-full flex items-center justify-center flex-shrink-0">
-                            <img 
-                                src="/Logo.png" 
-                                alt="Logo" 
+                            <img
+                                src="/Logo.png"
+                                alt="Logo"
                                 className="w-4 h-4 object-contain"
                             />
                         </div>
@@ -559,11 +552,11 @@ export default function Sidebar({ children }: SidebarProps) {
                     </div>
                 </main>
             </div>
-            
+
             {/* Stock Alert Settings */}
-            <StockAlertSettings 
-                isOpen={isSettingsOpen} 
-                onClose={() => setIsSettingsOpen(false)} 
+            <StockAlertSettings
+                isOpen={isSettingsOpen}
+                onClose={() => setIsSettingsOpen(false)}
             />
         </div>
     );

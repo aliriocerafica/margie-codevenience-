@@ -3,6 +3,8 @@ import { Viewport } from "next";
 import { Link } from "@heroui/link";
 import clsx from "clsx";
 import { Poppins } from "next/font/google";
+import type { Metadata } from 'next'
+import { SessionProvider } from "next-auth/react"
 
 import { Providers } from "./providers";
 import { ThemeSwitch } from "@/components/ThemeSwitch";
@@ -15,7 +17,9 @@ const poppins = Poppins({
 });
 import ConditionalLayout from "@/components/ConditionalLayout";
 
-
+export const metadata: Metadata = {
+  title: 'Margie CodeVenience POS',
+}
 
 export const viewport: Viewport = {
   themeColor: [
@@ -34,9 +38,11 @@ export default function RootLayout({
       <head />
       <body className={`bg-white text-gray-900 dark:bg-gray-900 dark:text-gray-100 font-poppins ${poppins.className}`}>
         <Providers themeProps={{ attribute: "class", defaultTheme: "system" }}>
-          <ConditionalLayout>
-            {children}
-          </ConditionalLayout>
+          <SessionProvider>
+            <ConditionalLayout>
+              {children}
+            </ConditionalLayout>
+          </SessionProvider>
           <SearchModal />
         </Providers>
       </body>
