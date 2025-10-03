@@ -1,13 +1,13 @@
 import { auth } from "@/auth";
 
 export default auth((req) => {
-  const privateRoutes = ["/category", "/dashboard", "/product"];
+  const privateRoutes = ["/category", "/dashboard", "/product", "/users", "/scanqr", "/analytics", "/reports"];
 
   const isLoggedIn = !!req.auth;
   const user = req.auth?.user;
 
   const url = "https://margie-codevenience.vercel.app";
-
+  // const url = "http://localhost:3000";
   const { pathname } = req.nextUrl;
 
   const isRootRoute = pathname === "/";
@@ -19,14 +19,7 @@ export default auth((req) => {
 
   // 🚫 Prevent logged-in users from accessing root, signup, and auth routes
   if (isLoggedIn && (isRootRoute || isSignupRoute || isAuthRoute)) {
-    if (user?.role === "Admin") {
-      return Response.redirect(`${url}/dashboard`);
-    }
-
-    // 🚧 Future role: Staff
-    // if (user?.role === "Staff") {
-    //   return Response.redirect(`${url}/dashboard`);
-    // }
+    return Response.redirect(`${url}/dashboard`);
   }
 
   // Protect private routes
@@ -41,17 +34,13 @@ export default auth((req) => {
     }
   }
 
-  // Protect dashboard routes (currently only Admins allowed)
-  if (isDashboardRoute) {
-    if (!isLoggedIn || user?.role !== "Admin") {
-      return Response.redirect(`${url}/signup`);
-    }
-
-    // 🚧 Future role: Staff
-    // if (user?.role === "Staff") {
-    //   return; // Staff can access dashboard
-    // }
+// Protect dashboard routes (Admins + Staff allowed)
+if (isDashboardRoute) {
+  const role = user?.role ?? ""; // fallback to empty string if undefined/null
+  if (!isLoggedIn || !["Admin", "Staff"].includes(role)) {
+    return Response.redirect(`${url}/signup`);
   }
+}
 });
 
 export const config = {
