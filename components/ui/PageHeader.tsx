@@ -16,9 +16,9 @@ interface PageHeaderProps {
   className?: string;
 }
 
-export const PageHeader: React.FC<PageHeaderProps> = ({ 
-  title, 
-  description, 
+export const PageHeader: React.FC<PageHeaderProps> = ({
+  title,
+  description,
   action,
   className = ""
 }) => {
@@ -30,7 +30,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
           <p className="text-gray-600 dark:text-gray-400 mt-1 text-sm sm:text-base">{description}</p>
         )}
       </div>
-      
+
       {action && (
         <div className="flex-shrink-0">
           <Button
@@ -38,7 +38,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
             variant={action.variant || "solid"}
             startContent={action.icon && <action.icon className="h-4 w-4" />}
             onPress={action.onClick}
-            className="w-full sm:w-auto"
+            className="bg-gradient-to-r from-[#003366] to-[#004488] hover:from-[#002244] hover:to-[#003366] text-white"
             size="md"
           >
             {action.label}
