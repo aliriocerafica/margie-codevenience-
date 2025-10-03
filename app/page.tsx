@@ -77,14 +77,16 @@ export default function SignupPage() {
         setMessage("");
 
         const result = await signIn("credentials", {
-            redirect: false,
+            redirect: true,
+            callbackUrl: "/dashboard",
             email,
             password,
         });
 
+        // If redirect is handled by Auth.js, this code may not run.
         setLoading(false);
 
-        if (result?.error) {
+        if ((result as any)?.error) {
             setMessage("Invalid credentials");
             return;
         }
@@ -98,8 +100,8 @@ export default function SignupPage() {
             localStorage.removeItem('rememberedEmail');
         }
 
-        // ✅ Auth.js now sets the JWT session cookie
-        router.replace("/dashboard");
+        // Redirect handled by Auth.js
+        return;
     };
 
 
