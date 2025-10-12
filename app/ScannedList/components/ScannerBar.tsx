@@ -3,7 +3,8 @@
 import React from "react";
 import { Input } from "@heroui/input";
 import { Button } from "@heroui/button";
-import { Barcode, Trash2, Plus } from "lucide-react";
+import { Search, Trash2, ScanLine } from "lucide-react";
+import Link from "next/link";
 
 export type ScannerBarProps = {
 	value: string;
@@ -78,27 +79,28 @@ export const ScannerBar: React.FC<ScannerBarProps> = ({ value, onChange, onScan,
 	return (
 		<div className="relative" ref={containerRef}>
 			<div className="flex items-center gap-3">
-				<Input
+                <Input
 					value={value}
 					onChange={(e) => onChange((e.target as HTMLInputElement).value)}
 					onKeyDown={handleKeyDown}
 					onFocus={handleFocus}
-					placeholder="Scan barcode or search product..."
+                    placeholder="Search product name to add..."
 					size="lg"
-					startContent={<Barcode className="w-5 h-5 text-[#003366] dark:text-[#4A90E2]" />}
+                    startContent={<Search className="w-5 h-5 text-[#003366] dark:text-[#4A90E2]" />}
 					classNames={{
 						inputWrapper: "h-12 border-2 border-gray-200 hover:border-[#003366] focus-within:border-[#003366] rounded-xl shadow-md hover:shadow-lg transition-all duration-200 bg-white dark:bg-gray-800 dark:border-gray-700",
 						input: "text-sm sm:text-base py-3 lg:py-3 px-3 lg:px-4"
 					}}
 				/>
-				<Button
-					size="lg"
-					className="h-12 rounded-xl bg-gradient-to-r from-[#003366] to-[#004488] text-white"
-					onPress={() => { onScan(); setOpen(false); }}
-					startContent={<Plus className="w-8 h-8" />}
-				>
-					Add
-				</Button>
+                <Link href="/scanqr">
+                    <Button
+                        isIconOnly
+                        size="lg"
+                        className="h-12 rounded-xl bg-gradient-to-r from-[#003366] to-[#004488] text-white"
+                        startContent={<ScanLine className="w-8 h-8" />}
+                        aria-label="Scan"
+                    />
+                </Link>
 				{onClear && (
 					<Button
 						size="lg"

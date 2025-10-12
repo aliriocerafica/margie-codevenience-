@@ -6,6 +6,7 @@ import { Button } from '@heroui/button';
 interface PageHeaderProps {
   title: string;
   description?: string;
+  actions?: React.ReactNode;
   action?: {
     label: string;
     onClick: () => void;
@@ -19,6 +20,7 @@ interface PageHeaderProps {
 export const PageHeader: React.FC<PageHeaderProps> = ({
   title,
   description,
+  actions,
   action,
   className = ""
 }) => {
@@ -31,7 +33,9 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
         )}
       </div>
 
-      {action && (
+      {actions ? (
+        <div className="flex-shrink-0">{actions}</div>
+      ) : action && (
         <div className="flex-shrink-0">
           <Button
             color={action.color || "primary"}

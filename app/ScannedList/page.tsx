@@ -11,51 +11,41 @@ export default function POSPage() {
     const [query, setQuery] = useState("");
     const [items, setItems] = useState<ScannedProduct[]>([]);
 
-    // Preload a few items from backend products (seed data)
+    // Load items from localStorage on mount
     useEffect(() => {
-        let isMounted = true;
-        const loadSamples = async () => {
+        const savedItems = localStorage.getItem('scannedItems');
+        if (savedItems) {
             try {
-                const res = await fetch("/api/product");
-                if (!res.ok) return;
-                const data = await res.json();
-                if (!Array.isArray(data)) return;
-                if (!isMounted) return;
-                // Take first 3 products as initial scanned items
-                const samples: ScannedProduct[] = data.slice(0, 3).map((p: any) => ({
-                    id: String(p.id),
-                    name: p.name,
-                    barcode: p.barcode ?? String(p.id).padStart(12, "0"),
-                    price: p.price,
-                    quantity: 1,
-                    status: (p.status ?? "available") as any,
-                }));
-                if (samples.length) setItems(samples);
-            } catch (_) {
-                // ignore, fall back to manual add using SAMPLE_PRODUCTS
+                const parsed = JSON.parse(savedItems);
+                if (Array.isArray(parsed)) {
+                    setItems(parsed);
+                }
+            } catch (e) {
+                console.error('Failed to parse saved items:', e);
             }
-        };
-        loadSamples();
-        return () => { isMounted = false; };
+        }
     }, []);
 
     const addOrIncrementBy = (p: { id: string; name: string; barcode: string; price: string | number; status?: string }) => {
         setItems(prev => {
             const existing = prev.find(i => i.id === String(p.id));
-            if (existing) {
-                return prev.map(i => i.id === existing.id ? { ...i, quantity: i.quantity + 1 } : i);
-            }
-            return [
-                ...prev,
-                {
-                    id: String(p.id),
-                    name: p.name,
-                    barcode: p.barcode,
-                    price: p.price,
-                    quantity: 1,
-                    status: (p.status ?? "available") as any,
-                }
-            ];
+            const newItems = existing
+                ? prev.map(i => i.id === existing.id ? { ...i, quantity: i.quantity + 1 } : i)
+                : [
+                    ...prev,
+                    {
+                        id: String(p.id),
+                        name: p.name,
+                        barcode: p.barcode,
+                        price: p.price,
+                        quantity: 1,
+                        status: (p.status ?? "available") as any,
+                    }
+                ];
+            
+            // Save to localStorage
+            localStorage.setItem('scannedItems', JSON.stringify(newItems));
+            return newItems;
         });
     };
 
@@ -87,20 +77,23 @@ export default function POSPage() {
     const handleSelect = (p: { id: string; name: string; barcode?: string; price: string | number; status?: string }) => {
         setItems(prev => {
             const existing = prev.find(i => i.id === String(p.id));
-            if (existing) {
-                return prev.map(i => i.id === existing.id ? { ...i, quantity: i.quantity + 1 } : i);
-            }
-            return [
-                ...prev,
-                {
-                    id: String(p.id),
-                    name: p.name,
-                    barcode: p.barcode ?? String(p.id).padStart(12, "0"),
-                    price: p.price,
-                    quantity: 1,
-                    status: (p.status ?? "available") as any,
-                }
-            ];
+            const newItems = existing
+                ? prev.map(i => i.id === existing.id ? { ...i, quantity: i.quantity + 1 } : i)
+                : [
+                    ...prev,
+                    {
+                        id: String(p.id),
+                        name: p.name,
+                        barcode: p.barcode ?? String(p.id).padStart(12, "0"),
+                        price: p.price,
+                        quantity: 1,
+                        status: (p.status ?? "available") as any,
+                    }
+                ];
+            
+            // Save to localStorage
+            localStorage.setItem('scannedItems', JSON.stringify(newItems));
+            return newItems;
         });
         setQuery("");
     };
@@ -155,16 +148,41 @@ export default function POSPage() {
         setQuery("");
     };
 
-    const handleClear = () => setItems([]);
-    const handleIncrease = (id: string) => setItems(prev => prev.map(i => i.id === id ? { ...i, quantity: i.quantity + 1 } : i));
-    const handleDecrease = (id: string) => setItems(prev => prev.map(i => i.id === id ? { ...i, quantity: Math.max(1, i.quantity - 1) } : i));
-    const handleRemove = (id: string) => setItems(prev => prev.filter(i => i.id !== id));
+    const handleClear = () => {
+        setItems([]);
+        localStorage.removeItem('scannedItems');
+        localStorage.removeItem('recentScans');
+    };
+    
+    const handleIncrease = (id: string) => {
+        setItems(prev => {
+            const newItems = prev.map(i => i.id === id ? { ...i, quantity: i.quantity + 1 } : i);
+            localStorage.setItem('scannedItems', JSON.stringify(newItems));
+            return newItems;
+        });
+    };
+    
+    const handleDecrease = (id: string) => {
+        setItems(prev => {
+            const newItems = prev.map(i => i.id === id ? { ...i, quantity: Math.max(1, i.quantity - 1) } : i);
+            localStorage.setItem('scannedItems', JSON.stringify(newItems));
+            return newItems;
+        });
+    };
+    
+    const handleRemove = (id: string) => {
+        setItems(prev => {
+            const newItems = prev.filter(i => i.id !== id);
+            localStorage.setItem('scannedItems', JSON.stringify(newItems));
+            return newItems;
+        });
+    };
 
     return (
         <div className="space-y-6">
             <PageHeader
-                title="Scanned List of Products"
-                description="Scan products and generate receipt in real-time."
+                title="Product List"
+                description="Search product names and build your receipt in real-time."
             />
 
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">

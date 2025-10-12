@@ -22,8 +22,6 @@ import {
 import {
     Home,
     Package,
-    Calendar,
-    Truck,
     BarChart3,
     Settings,
     LogOut,
@@ -74,52 +72,49 @@ export default function Sidebar({ children }: SidebarProps) {
             name: "Dashboard",
             href: "/dashboard",
             icon: Grid3X3,
+            hasNotification: false,
         },
         {
             name: "Products",
             href: "/product",
             icon: Package,
+            hasNotification: false,
         },
         {
             name: "Categories",
             href: "/category",
             icon: Tag,
+            hasNotification: false,
         },
         {
             name: "Team",
             href: "/users",
             icon: User,
+            hasNotification: false,
         },
         {
             name: "Scan Items",
             href: "/scanqr",
             icon: ScanLine,
+            hasNotification: false,
         },
         {
             name: "Checkout",
             href: "/ScannedList",
             icon: Barcode,
-        },
-        {
-            name: "Calendar",
-            href: "/calendar",
-            icon: Calendar,
-            hasNotification: true,
-        },
-        {
-            name: "Vendors",
-            href: "/suppliers",
-            icon: Truck,
+            hasNotification: false,
         },
         {
             name: "Analytics",
             href: "/analytics",
             icon: BarChart3,
+            hasNotification: false,
         },
         {
             name: "Reports",
             href: "/reports",
             icon: TrendingUp,
+            hasNotification: false,
         },
     ];
 

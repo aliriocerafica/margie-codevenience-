@@ -6,8 +6,8 @@ export default auth((req) => {
   const isLoggedIn = !!req.auth;
   const user = req.auth?.user;
 
-  const url = "https://margie-codevenience.vercel.app";
-  // const url = "http://localhost:3000";
+  // const url = "https://margie-codevenience.vercel.app";
+  const url = "http://localhost:3000";
   const { pathname } = req.nextUrl;
 
   const isRootRoute = pathname === "/";

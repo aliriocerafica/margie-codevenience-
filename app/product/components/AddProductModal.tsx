@@ -29,6 +29,7 @@ interface AddProductModalProps {
   isOpen: boolean;
   onClose: () => void;
   onProductAdded?: (product: any) => void;
+  initialData?: Partial<ProductFormData>;
 }
 
 interface Category {
@@ -46,7 +47,7 @@ interface ProductFormData {
   image: string;
 }
 
-export default function AddProductModal({ isOpen, onClose, onProductAdded }: AddProductModalProps) {
+export default function AddProductModal({ isOpen, onClose, onProductAdded, initialData }: AddProductModalProps) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loadingCategories, setLoadingCategories] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -72,6 +73,21 @@ export default function AddProductModal({ isOpen, onClose, onProductAdded }: Add
     categoryId: '',
     image: ''
   });
+
+  // Prefill from initialData when opening
+  useEffect(() => {
+    if (!isOpen) return;
+    if (!initialData) return;
+    setFormData(prev => ({
+      name: initialData.name ?? prev.name,
+      price: initialData.price ?? prev.price,
+      stock: initialData.stock ?? prev.stock,
+      barcode: initialData.barcode ?? prev.barcode,
+      categoryId: initialData.categoryId ?? prev.categoryId,
+      image: initialData.image ?? prev.image,
+    }));
+    if (initialData.image) setPreviewImage(initialData.image);
+  }, [isOpen, initialData]);
 
   // Fetch categories on modal open
   useEffect(() => {

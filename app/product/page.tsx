@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, Suspense } from "react";
-import { Plus, Package, Download, Filter } from "lucide-react";
+import { Plus, Package, Download, Filter, ScanLine } from "lucide-react";
 import useSWR from "swr";
 import { usePageHighlight } from "@/hooks/usePageHighlight";
 import { useSearchParams, useRouter } from "next/navigation";
@@ -11,10 +11,12 @@ import { ErrorMessage } from "@/components/ui/ErrorMessage";
 import { StatCard } from "@/components/ui/StatCard";
 import { ProductTable } from "./components/ProductTable";
 import AddProductModal from "@/app/product/components/AddProductModal";
+import ScanBarcodePanel from "@/app/product/components/ScanBarcodePanel";
 import DeleteProductModal from "@/app/product/components/DeleteProductModal";
 import EditProductModal from "@/app/product/components/EditProductModal";
 import { LOADING_MESSAGES, ERROR_MESSAGES } from "@/lib/constants";
 import { useNotifications } from "@/contexts/NotificationContext";
+import { Dropdown, DropdownTrigger, DropdownMenu, DropdownItem, Button, Modal, ModalContent, ModalHeader, ModalBody } from "@heroui/react";
 
 const fetcher = (url: string) => fetch(url).then(res => res.json());
 
@@ -26,6 +28,9 @@ const ProductWithSearchParams = () => {
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [productToDelete, setProductToDelete] = useState<any>(null);
     const [productToEdit, setProductToEdit] = useState<any>(null);
+    const [isScanMode, setIsScanMode] = useState(false);
+    const [prefillData, setPrefillData] = useState<any>(null);
+    const [isProcessingScan, setIsProcessingScan] = useState(false);
     const { data, error, isLoading, mutate } = useSWR(
         useBackendData ? `/api/product` : null,
         fetcher
@@ -90,6 +95,31 @@ const ProductWithSearchParams = () => {
         mutate();
     };
 
+    const handleStartScanHere = () => {
+        setIsScanMode(true);
+    };
+
+    const handleScannedFromOFF = (data: { name?: string; imageUrl?: string; brand?: string; gtin?: string }) => {
+        // Map OFF data to modal fields
+        setPrefillData({
+            name: data.name || "",
+            price: "",
+            stock: "",
+            barcode: data.gtin || "",
+            image: data.imageUrl || "",
+            categoryId: ""
+        });
+        
+        // Close scan modal first, then open add product modal
+        setIsScanMode(false);
+        setIsProcessingScan(false);
+        
+        // Small delay to ensure scan modal is fully closed
+        setTimeout(() => {
+            setIsAddProductModalOpen(true);
+        }, 100);
+    };
+
     if (currentLoading) {
         return <LoadingSpinner message={LOADING_MESSAGES.products} variant="card" />;
     }
@@ -109,12 +139,23 @@ const ProductWithSearchParams = () => {
             <PageHeader
                 title="Products"
                 description="Manage your product inventory and pricing."
-                action={{
-                    label: "Add Product",
-                    onClick: handleAddProduct,
-                    icon: Plus,
-                    color: "primary"
-                }}
+                actions={(
+                    <Dropdown>
+                        <DropdownTrigger>
+                            <Button className="bg-gradient-to-r from-[#003366] to-[#004488] text-white">
+                                <Plus className="h-4 w-4 mr-2" /> Add product
+                            </Button>
+                        </DropdownTrigger>
+                        <DropdownMenu aria-label="Add product options">
+                            <DropdownItem key="scan" startContent={<ScanLine className="h-4 w-4" />} onClick={handleStartScanHere}>
+                                Scan barcode
+                            </DropdownItem>
+                            <DropdownItem key="manual" startContent={<Plus className="h-4 w-4" />} onClick={handleAddProduct}>
+                                Manual entry
+                            </DropdownItem>
+                        </DropdownMenu>
+                    </Dropdown>
+                )}
             />
 
             {/* Quick Stats */}
@@ -153,6 +194,84 @@ const ProductWithSearchParams = () => {
                 />
             </div>
 
+            {/* Scan Modal */}
+            <Modal 
+                isOpen={isScanMode} 
+                onClose={() => {
+                    setIsScanMode(false);
+                    setIsProcessingScan(false);
+                }} 
+                size="lg" 
+                backdrop="blur"
+            >
+                <ModalContent>
+                    <ModalHeader className="flex items-center gap-2">
+                        <ScanLine className="h-5 w-5 text-[#003366] dark:text-[#4A90E2]" />
+                        <span className="font-semibold">Scan barcode</span>
+                    </ModalHeader>
+                    <ModalBody>
+                        {isScanMode && (
+                            <ScanBarcodePanel
+                                onResult={async ({ code }) => {
+                                    if (isProcessingScan) return; // Prevent duplicate processing
+                                    
+                                    setIsProcessingScan(true);
+                                    try {
+                                        // Only use Open Food Facts, skip local DB
+                                        const res = await fetch(`https://world.openfoodfacts.org/api/v0/product/${code}.json`, { cache: 'no-store' });
+                                        console.log("[SCAN] OFF Response status:", res.status);
+                                        if (res.ok) {
+                                            const data = await res.json();
+                                            console.log("[SCAN] OFF Response data:", { status: data?.status, hasProduct: !!data?.product });
+                                            if (data?.status === 1 && data.product) {
+                                                const p = data.product;
+                                                const productData = {
+                                                    name: p.product_name || p.generic_name || "",
+                                                    brand: Array.isArray(p.brands_tags) && p.brands_tags.length ? p.brands_tags[0] : p.brands || "",
+                                                    imageUrl: p.image_front_small_url || p.image_url || "",
+                                                    categories: p.categories_hierarchy || [],
+                                                };
+                                                
+                                                // Log to server terminal
+                                                try {
+                                                    await fetch("/api/log-scan", {
+                                                        method: "POST",
+                                                        headers: { "Content-Type": "application/json" },
+                                                        body: JSON.stringify({ code, data: productData })
+                                                    });
+                                                } catch {}
+                                                
+                                                handleScannedFromOFF({
+                                                    name: productData.name,
+                                                    imageUrl: productData.imageUrl,
+                                                    brand: productData.brand,
+                                                    gtin: code,
+                                                });
+                                                return;
+                                            } else {
+                                                console.log("[SCAN] OFF Product not found, status:", data?.status);
+                                            }
+                                        }
+                                    } catch (e) {
+                                        console.log("[SCAN] OFF Error:", e);
+                                    } finally {
+                                        setIsProcessingScan(false);
+                                    }
+                                    // Fallback: just open manual with barcode prefilled
+                                    console.log("[SCAN] Opening manual entry with barcode:", code);
+                                    handleScannedFromOFF({ gtin: code });
+                                }}
+                                onClose={() => {
+                                    setIsScanMode(false);
+                                    setIsProcessingScan(false);
+                                }}
+                                isProcessing={isProcessingScan}
+                            />
+                        )}
+                    </ModalBody>
+                </ModalContent>
+            </Modal>
+
             {/* Products Table */}
             <ProductTable
                 data={productData}
@@ -167,6 +286,8 @@ const ProductWithSearchParams = () => {
                 isOpen={isAddProductModalOpen}
                 onClose={() => {
                     setIsAddProductModalOpen(false);
+                    setPrefillData(null);
+                    setIsProcessingScan(false); // Reset processing state
                     // Clean up the add query param without full reload
                     try {
                         const params = new URLSearchParams(searchParams?.toString());
@@ -177,6 +298,7 @@ const ProductWithSearchParams = () => {
                     } catch {}
                 }}
                 onProductAdded={handleProductAdded}
+                initialData={prefillData || undefined}
             />
 
             {/* Delete Product Modal */}

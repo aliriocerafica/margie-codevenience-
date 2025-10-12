@@ -67,10 +67,17 @@ export const buildReceiptHtml = (data: ReceiptPayload) => {
     .title { font-size: 12px; margin: 2px 0 6px; color: #111; font-weight: 700; letter-spacing: 0.4px; }
     .muted { color: #666; font-size: 11px; line-height: 1.2; }
     hr { border: none; border-top: 1px dashed #bbb; margin: 8px 0; }
-    table { width: 100%; border-collapse: collapse; font-size: 12px; }
-    thead th { text-align: left; padding: 4px 0; color: #444; font-size: 10px; border-bottom: 1px dashed #bbb; }
-    td { padding: 4px 0; vertical-align: top; }
-    td.qty, td.price, td.total { text-align: right; white-space: nowrap; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; table-layout: fixed; }
+    thead th { text-align: left; padding: 4px 4px 4px 0; color: #444; font-size: 10px; border-bottom: 1px dashed #bbb; }
+    thead th:first-child { width: 40%; }
+    thead th.qty { width: 15%; text-align: right; }
+    thead th.price { width: 22%; text-align: right; }
+    thead th.total { width: 23%; text-align: right; }
+    td { padding: 4px 4px 4px 0; vertical-align: top; }
+    td.desc { width: 40%; }
+    td.qty { width: 15%; text-align: right; white-space: nowrap; padding-right: 8px; }
+    td.price { width: 22%; text-align: right; white-space: nowrap; padding-right: 8px; }
+    td.total { width: 23%; text-align: right; white-space: nowrap; }
     .desc .name { font-weight: 600; }
     .desc .code { font-size: 10px; color: #777; }
     .totals { font-size: 12px; margin-top: 4px; }
