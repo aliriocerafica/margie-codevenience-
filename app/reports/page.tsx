@@ -3,10 +3,13 @@
 import React, { useMemo, useState } from "react";
 import useSWR from "swr";
 import { Button, Input, Popover, PopoverTrigger, PopoverContent, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Select, SelectItem, Switch } from "@heroui/react";
-import { Download, Calendar, BarChart3, TrendingUp, RotateCcw, Wrench } from "lucide-react";
+import { Download, Calendar, BarChart3, TrendingUp, RotateCcw } from "lucide-react";
 import DataTable from "@/components/DataTable";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatCard } from "@/components/ui/StatCard";
+import SalesPerformanceCard from "./components/SalesPerformanceCard";
+import TopProductsCard from "./components/TopProductsCard";
+import RevenueTrendsCard from "./components/RevenueTrendsCard";
 
 const fetcher = (url: string) => fetch(url).then(r => r.json());
 
@@ -210,72 +213,66 @@ export default function ReportsPage() {
         r.beforeStock,
         r.afterStock,
         r.refId ?? "",
-        (r.reason ?? "").replaceAll(","," ")
+        (r.reason ?? "").replaceAll(","," "),
       ].join(","));
       const csv = [header.join(","), ...lines].join("\n");
       const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `stock-movements-${new Date().toISOString().slice(0,10)}.csv`;
+      a.download = "stock-movements.csv";
       a.click();
       URL.revokeObjectURL(url);
     } else if (exportFileType === "tsv") {
-      const header = ["Date","Product","Type","Qty","Before","After","Ref","Reason"]; 
-      const esc = (v: any) => String(v).replaceAll("\t", " ");
+      const header = ["Date","Product","Type","Qty","Before","After","Ref","Reason"];
       const lines = filtered.map((r: any) => [
         new Date(r.createdAt).toISOString(),
-        esc(r.product?.name ?? ""),
-        esc(r.type),
-        esc(r.quantity),
-        esc(r.beforeStock),
-        esc(r.afterStock),
-        esc(r.refId ?? ""),
-        esc(r.reason ?? "")
+        r.product?.name ?? "",
+        r.type,
+        r.quantity,
+        r.beforeStock,
+        r.afterStock,
+        r.refId ?? "",
+        r.reason ?? "",
       ].join("\t"));
       const tsv = [header.join("\t"), ...lines].join("\n");
       const blob = new Blob([tsv], { type: "text/tab-separated-values;charset=utf-8;" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `stock-movements-${new Date().toISOString().slice(0,10)}.tsv`;
+      a.download = "stock-movements.tsv";
       a.click();
       URL.revokeObjectURL(url);
     } else if (exportFileType === "json") {
       const payload = filtered.map((r: any) => ({
-        createdAt: r.createdAt,
-        product: r.product?.name ?? "",
+        date: new Date(r.createdAt).toISOString(),
+        product: r.product?.name ?? null,
         type: r.type,
         quantity: r.quantity,
         beforeStock: r.beforeStock,
         afterStock: r.afterStock,
-        refId: r.refId ?? "",
-        reason: r.reason ?? ""
+        refId: r.refId ?? null,
+        reason: r.reason ?? null,
       }));
       const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json;charset=utf-8;" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `stock-movements-${new Date().toISOString().slice(0,10)}.json`;
+      a.download = "stock-movements.json";
       a.click();
       URL.revokeObjectURL(url);
     } else if (exportFileType === "xml") {
-      const escXml = (v: any) => String(v)
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;")
-        .replaceAll('"', "&quot;")
-        .replaceAll("'", "&apos;");
+      const escXml = (v: any) => String(v).replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
       const rowsXml = filtered.map((r: any) => (
-        `  <movement>\n`+
-        `    <createdAt>${escXml(new Date(r.createdAt).toISOString())}</createdAt>\n`+
-        `    <product>${escXml(r.product?.name ?? "")}</product>\n`+
-        `    <type>${escXml(r.type)}</type>\n`+
-        `    <quantity>${escXml(r.quantity)}</quantity>\n`+
-        `    <beforeStock>${escXml(r.beforeStock)}</beforeStock>\n`+
-        `    <afterStock>${escXml(r.afterStock)}</afterStock>\n`+
-        `    <refId>${escXml(r.refId ?? "")}</refId>\n`+
-        `    <reason>${escXml(r.reason ?? "")}</reason>\n`+
+        `  <movement>\n` +
+        `    <date>${escXml(new Date(r.createdAt).toISOString())}</date>\n` +
+        `    <product>${escXml(r.product?.name ?? "")}</product>\n` +
+        `    <type>${escXml(r.type)}</type>\n` +
+        `    <quantity>${escXml(r.quantity)}</quantity>\n` +
+        `    <beforeStock>${escXml(r.beforeStock)}</beforeStock>\n` +
+        `    <afterStock>${escXml(r.afterStock)}</afterStock>\n` +
+        `    <refId>${escXml(r.refId ?? "")}</refId>\n` +
+        `    <reason>${escXml(r.reason ?? "")}</reason>\n` +
         `  </movement>`
       )).join("\n");
       const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<stockMovements>\n${rowsXml}\n</stockMovements>\n`;
@@ -283,143 +280,102 @@ export default function ReportsPage() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `stock-movements-${new Date().toISOString().slice(0,10)}.xml`;
+      a.download = "stock-movements.xml";
       a.click();
       URL.revokeObjectURL(url);
-    } else if (exportFileType === "xlsx") {
-      window.alert("Export to Excel (.xlsx) is not available yet. Please use CSV for Excel.");
-      return;
-    } else if (exportFileType === "pdf") {
-      window.alert("PDF export is not available yet.");
-      return;
     }
-
     setIsExportOpen(false);
   };
 
   return (
-    <div className="space-y-6">
-      <PageHeader 
-        title="Reports" 
-        description="Track inventory changes across sales, refunds, voids, and manual adjustments." 
-        action={{
-          label: "Export",
-          onClick: () => { setExportAll(true); setExportFrom(""); setExportTo(""); setExportFileType("csv"); setPeriodPreset("custom"); setIsExportOpen(true); },
-          icon: Download,
-          color: "primary"
-        }}
-      />
-      <Modal
-        isOpen={isExportOpen}
-        onClose={() => setIsExportOpen(false)}
-        size="lg"
-        backdrop="blur"
-        classNames={{
-          backdrop: "bg-black/50 backdrop-blur-sm",
-          base: "border-none",
-          header: "border-b border-gray-200 dark:border-gray-700",
-          footer: "border-t border-gray-200 dark:border-gray-700",
-          closeButton: "hover:bg-gray-100 dark:hover:bg-gray-800",
-        }}
-      >
+    <div className="p-6 space-y-6">
+      <PageHeader title="Sales Reports" />
+
+      <Modal isOpen={isExportOpen} onClose={() => setIsExportOpen(false)} size="xl">
         <ModalContent>
-          <ModalHeader className="flex flex-col gap-1">
-            Export Stock Movement Report
-          </ModalHeader>
+          <ModalHeader>Export Stock Movements</ModalHeader>
           <ModalBody className="py-6">
             <div className="space-y-6">
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <div className="text-sm font-semibold text-gray-900 dark:text-gray-100">Include all records</div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400">Export the full audit history for stock movements.</div>
-                </div>
-                <Switch isSelected={exportAll} onValueChange={setExportAll} aria-label="Include all records" />
-              </div>
-
-              {!exportAll && (
-                <div>
-                  <div className="text-sm font-semibold text-gray-900 dark:text-gray-100">Reporting period</div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400">Choose a quick range or select Custom to pick dates.</div>
-                  <div className="flex flex-wrap gap-2 mt-3">
-                    {[
-                      { key: "today", label: "Today" },
-                      { key: "yesterday", label: "Yesterday" },
-                      { key: "last7", label: "Last 7 days" },
-                      { key: "last30", label: "Last 30 days" },
-                      { key: "thisMonth", label: "This month" },
-                      { key: "lastMonth", label: "Last month" },
-                      { key: "custom", label: "Custom" },
-                    ].map((p) => (
-                      <Button
-                        key={p.key}
-                        size="sm"
-                        variant={periodPreset === (p.key as any) ? "solid" : "flat"}
-                        color={periodPreset === (p.key as any) ? "primary" : "default"}
-                        onPress={() => { setPeriodPreset(p.key as any); if (p.key !== "custom") applyPresetRange(p.key as any); }}
-                      >
-                        {p.label}
-                      </Button>
-                    ))}
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4">
-                    <Input 
-                      type="datetime-local" 
-                      label="Start date and time"
-                      labelPlacement="outside"
-                      size="lg"
-                      placeholder="YYYY-MM-DD HH:MM"
-                      value={exportFrom}
-                      onChange={(e) => setExportFrom(e.target.value)} 
-                      isReadOnly={periodPreset !== "custom"}
-                      classNames={{ inputWrapper: "h-12" }}
-                    />
-                    <Input 
-                      type="datetime-local" 
-                      label="End date and time"
-                      labelPlacement="outside"
-                      size="lg"
-                      placeholder="YYYY-MM-DD HH:MM"
-                      value={exportTo}
-                      onChange={(e) => setExportTo(e.target.value)} 
-                      isReadOnly={periodPreset !== "custom"}
-                      classNames={{ inputWrapper: "h-12" }}
-                    />
-                  </div>
-                </div>
-              )}
-
               <div>
-                <div className="text-sm font-semibold text-gray-900 dark:text-gray-100">Output format</div>
-                <div className="text-xs text-gray-500 dark:text-gray-400 mb-4">Choose the file type for downstream analysis or archiving.</div>
-                <div className="mt-8">
-                  <Select 
-                    selectedKeys={[exportFileType]}
-                    onSelectionChange={(keys) => {
-                      const [k] = Array.from(keys) as string[];
-                      setExportFileType(k);
-                    }}
-                    label="File type"
-                    labelPlacement="outside"
-                    size="lg"
-                  >
-                    <SelectItem key="csv">CSV</SelectItem>
-                    <SelectItem key="tsv">TSV (Tab-separated)</SelectItem>
-                    <SelectItem key="json">JSON</SelectItem>
-                    <SelectItem key="xml">XML</SelectItem>
-                    <SelectItem key="xlsx">Excel (.xlsx)</SelectItem>
-                    <SelectItem key="pdf">PDF</SelectItem>
-                  </Select>
-                </div>
+                <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-3">Select Export Period</p>
+                <Switch isSelected={exportAll} onValueChange={setExportAll} className="mb-4">
+                  Export all entries ({rows.length})
+                </Switch>
+                {!exportAll && (
+                  <div className="space-y-4">
+                    <div className="flex flex-wrap gap-2">
+                      {[
+                        { key: "today", label: "Today" },
+                        { key: "yesterday", label: "Yesterday" },
+                        { key: "last7", label: "Last 7 days" },
+                        { key: "last30", label: "Last 30 days" },
+                        { key: "thisMonth", label: "This month" },
+                        { key: "lastMonth", label: "Last month" },
+                        { key: "custom", label: "Custom range" },
+                      ].map((p) => (
+                        <Button
+                          key={p.key}
+                          size="sm"
+                          variant={periodPreset === (p.key as any) ? "solid" : "flat"}
+                          color={periodPreset === (p.key as any) ? "primary" : "default"}
+                          onPress={() => { setPeriodPreset(p.key as any); if (p.key !== "custom") applyPresetRange(p.key as any); }}
+                        >
+                          {p.label}
+                        </Button>
+                      ))}
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <Input
+                        type="datetime-local"
+                        label="From"
+                        labelPlacement="outside"
+                        value={exportFrom}
+                        onChange={(e) => setExportFrom(e.target.value)}
+                        isReadOnly={periodPreset !== "custom"}
+                        size="lg"
+                        classNames={{ inputWrapper: "h-12" }}
+                      />
+                      <Input
+                        type="datetime-local"
+                        label="To"
+                        labelPlacement="outside"
+                        value={exportTo}
+                        onChange={(e) => setExportTo(e.target.value)}
+                        isReadOnly={periodPreset !== "custom"}
+                        size="lg"
+                        classNames={{ inputWrapper: "h-12" }}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-3">Select File Format</p>
+                <Select
+                  selectedKeys={[exportFileType]}
+                  onSelectionChange={(keys) => {
+                    const [k] = Array.from(keys) as string[];
+                    setExportFileType(k);
+                  }}
+                  label="File type"
+                  labelPlacement="outside"
+                  size="lg"
+                >
+                  <SelectItem key="csv">CSV (Comma-separated)</SelectItem>
+                  <SelectItem key="tsv">TSV (Tab-separated)</SelectItem>
+                  <SelectItem key="json">JSON</SelectItem>
+                  <SelectItem key="xml">XML</SelectItem>
+                </Select>
               </div>
             </div>
           </ModalBody>
           <ModalFooter>
-            <Button variant="light" onPress={() => { setExportFrom(""); setExportTo(""); setExportAll(true); }}>Reset</Button>
-            <Button color="primary" onPress={performExport} startContent={<Download className="h-4 w-4" />}>Export</Button>
+            <Button variant="light" onPress={() => setIsExportOpen(false)}>Cancel</Button>
+            <Button color="primary" startContent={<Download className="h-4 w-4" />} onPress={performExport}>Export</Button>
           </ModalFooter>
         </ModalContent>
       </Modal>
-      {/* Export moved into table header controls to match Products layout */}
+
       {/* Quick Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <StatCard title="Total Movements" value={String(stats.total)} icon={BarChart3} color="blue" />
@@ -427,6 +383,15 @@ export default function ReportsPage() {
         <StatCard title="Refunds Posted" value={String(stats.refund)} icon={RotateCcw} color="yellow" />
         <StatCard title="Voids Posted" value={String(stats.voids)} icon={RotateCcw} color="red" />
       </div>
+
+      {/* Sales Reports Feature Cards */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <SalesPerformanceCard />
+        <TopProductsCard />
+        <RevenueTrendsCard />
+      </div>
+
+      {/* Stock Movements DataTable */}
       <div className="py-6">
       <DataTable
         filter={true}
@@ -504,6 +469,9 @@ export default function ReportsPage() {
                 </div>
               </PopoverContent>
             </Popover>
+            <Button size="lg" color="primary" variant="solid" startContent={<Download className="h-4 w-4" />} onPress={() => setIsExportOpen(true)}>
+              Export
+            </Button>
           </div>
         )}
       />
@@ -511,5 +479,4 @@ export default function ReportsPage() {
     </div>
   );
 }
-
 

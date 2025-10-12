@@ -104,14 +104,14 @@ export default function Sidebar({ children }: SidebarProps) {
             icon: Barcode,
             hasNotification: false,
         },
+        // {
+        //     name: "Analytics",
+        //     href: "/analytics",
+        //     icon: BarChart3,
+        //     hasNotification: false,
+        // },
         {
-            name: "Analytics",
-            href: "/analytics",
-            icon: BarChart3,
-            hasNotification: false,
-        },
-        {
-            name: "Reports",
+            name: "Sales Reports",
             href: "/reports",
             icon: TrendingUp,
             hasNotification: false,

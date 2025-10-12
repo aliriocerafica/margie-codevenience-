@@ -52,17 +52,17 @@ export const DASHBOARD_QUICK_ACTIONS: QuickActionItem[] = [
     icon: Tag,
     href: "/category"
   },
-  { 
-    id: "view-analytics", 
-    label: "View Analytics", 
-    color: "success", 
-    variant: "flat", 
-    icon: BarChart3,
-    href: "/analytics"
-  },
+  // { 
+  //   id: "view-analytics", 
+  //   label: "View Analytics", 
+  //   color: "success", 
+  //   variant: "flat", 
+  //   icon: BarChart3,
+  //   href: "/analytics"
+  // },
   { 
     id: "sales-report", 
-    label: "Sales Report", 
+    label: "Sales Reports", 
     color: "warning", 
     variant: "flat", 
     icon: TrendingUp,

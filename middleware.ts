@@ -1,7 +1,7 @@
 import { auth } from "@/auth";
 
 export default auth((req) => {
-  const privateRoutes = ["/category", "/dashboard", "/product", "/users", "/scanqr", "/analytics", "/reports"];
+  const privateRoutes = ["/category", "/dashboard", "/product", "/users", "/scanqr", /* "/analytics", */ "/reports"];
 
   const isLoggedIn = !!req.auth;
   const user = req.auth?.user;
