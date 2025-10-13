@@ -26,7 +26,7 @@ export default function POSPage() {
         }
     }, []);
 
-    const addOrIncrementBy = (p: { id: string; name: string; barcode: string; price: string | number; status?: string }) => {
+    const addOrIncrementBy = (p: { id: string; name: string; barcode: string; price: string | number; status?: string; stock?: number }) => {
         setItems(prev => {
             const existing = prev.find(i => i.id === String(p.id));
             const newItems = existing
@@ -40,6 +40,7 @@ export default function POSPage() {
                         price: p.price,
                         quantity: 1,
                         status: (p.status ?? "available") as any,
+                        stock: p.stock,
                     }
                 ];
             
@@ -122,6 +123,7 @@ export default function POSPage() {
                     barcode: match.barcode ?? String(match.id).padStart(12, "0"),
                     price: match.price,
                     status: match.status,
+                    stock: parseInt(match.stock) || 0,
                 });
                 setQuery("");
                 return;
@@ -143,6 +145,7 @@ export default function POSPage() {
                 barcode: local.id.toString().padStart(12, "0"),
                 price: local.price,
                 status: local.status as any,
+                stock: local.stock || 0,
             });
         }
         setQuery("");
@@ -178,6 +181,14 @@ export default function POSPage() {
         });
     };
 
+    const handleQuantityChange = (id: string, quantity: number) => {
+        setItems(prev => {
+            const newItems = prev.map(i => i.id === id ? { ...i, quantity: Math.max(1, quantity) } : i);
+            localStorage.setItem('scannedItems', JSON.stringify(newItems));
+            return newItems;
+        });
+    };
+
     return (
         <div className="space-y-6">
             <PageHeader
@@ -196,6 +207,7 @@ export default function POSPage() {
                         onIncrease={handleIncrease}
                         onDecrease={handleDecrease}
                         onRemove={handleRemove}
+                        onQuantityChange={handleQuantityChange}
                         onClear={handleClear}
                     />
                 </div>

@@ -13,14 +13,15 @@ export type ScanPanelProps = {
     onIncrease: (id: string) => void;
     onDecrease: (id: string) => void;
     onRemove: (id: string) => void;
+    onQuantityChange: (id: string, quantity: number) => void;
     onClear: () => void;
 };
 
-export const ScanPanel: React.FC<ScanPanelProps> = ({ query, onQueryChange, onScan, onSelect, items, onIncrease, onDecrease, onRemove, onClear }) => {
+export const ScanPanel: React.FC<ScanPanelProps> = ({ query, onQueryChange, onScan, onSelect, items, onIncrease, onDecrease, onRemove, onQuantityChange, onClear }) => {
     return (
         <div className="space-y-4">
             <ScannerBar value={query} onChange={onQueryChange} onScan={onScan} onSelect={onSelect} onClear={onClear} />
-            <ScannedProductsTable items={items} onIncrease={onIncrease} onDecrease={onDecrease} onRemove={onRemove} />
+            <ScannedProductsTable items={items} onIncrease={onIncrease} onDecrease={onDecrease} onRemove={onRemove} onQuantityChange={onQuantityChange} />
         </div>
     );
 };

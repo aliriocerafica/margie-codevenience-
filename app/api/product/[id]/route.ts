@@ -31,8 +31,17 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       }
     }
 
+    // Calculate status based on stock level
+    const stockNum = parseInt(stock) || 0;
+    let status = "available";
+    if (stockNum <= 0) {
+      status = "out_of_stock";
+    } else if (stockNum <= 10) { // Default low stock threshold
+      status = "low_stock";
+    }
+
     // Prepare update data
-    const updateData: any = { name, price, stock, categoryId };
+    const updateData: any = { name, price, stock, categoryId, status };
     if (barcode !== null) updateData.barcode = barcode && barcode.trim() !== "" ? barcode.trim() : null;
     if (imageUrl !== null) updateData.imageUrl = imageUrl;
 

@@ -3,35 +3,47 @@
 import { Card, CardHeader, CardBody, Button, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Select, SelectItem } from "@heroui/react";
 import { Package, Download } from "lucide-react";
 import { useState } from "react";
+import useSWR from "swr";
 import * as XLSX from 'xlsx';
 
-const extendedTopProducts = [
-  { name: "Wireless Earbuds", sold: 145, revenue: 14500, trend: "+15%" },
-  { name: "Smartphone X", sold: 89, revenue: 62211, trend: "+22%" },
-  { name: "Running Shoes", sold: 76, revenue: 6840, trend: "+8%" },
-  { name: "Coffee Maker", sold: 64, revenue: 5759, trend: "+12%" },
-  { name: "Laptop Pro 15\"", sold: 52, revenue: 67548, trend: "+5%" },
-  { name: "Bluetooth Speaker", sold: 48, revenue: 2832, trend: "+18%" },
-  { name: "USB-C Hub", sold: 45, revenue: 1125, trend: "+10%" },
-  { name: "Gaming Chair", sold: 38, revenue: 4940, trend: "+7%" },
-  { name: "Mechanical Keyboard", sold: 35, revenue: 1715, trend: "+14%" },
-  { name: "4K Monitor", sold: 28, revenue: 7280, trend: "-3%" },
-];
+const fetcher = (url: string) => fetch(url).then(r => r.json());
 
 export default function TopProductsCard() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isExportOpen, setIsExportOpen] = useState(false);
   const [exportFileType, setExportFileType] = useState<string>("xlsx");
+  const [period, setPeriod] = useState<string>("all");
+
+  // Fetch data
+  const { data, error, isLoading } = useSWR(`/api/reports/top-products?period=${period}&limit=10`, fetcher);
+
+  const extendedTopProducts = data?.products || [];
+  const topFiveProducts = extendedTopProducts.slice(0, 5);
 
   const exportTopProducts = () => {
     const timestamp = new Date().toISOString().slice(0, 10);
+    const dataToExport = extendedTopProducts;
+    const totalRevenue = dataToExport.reduce((sum: number, p: any) => sum + p.revenue, 0);
+    const totalUnitsSold = dataToExport.reduce((sum: number, p: any) => sum + p.sold, 0);
     
     if (exportFileType === "csv") {
-      const header = ["Rank", "Product", "Units Sold", "Revenue", "Trend"];
-      const lines = extendedTopProducts.map((r: any, idx: number) => [
-        idx + 1, r.name.replaceAll(",", " "), r.sold, r.revenue, r.trend
-      ].join(","));
-      const csv = [header.join(","), ...lines].join("\n");
+      const summaryLines = [
+        "TOP SELLING PRODUCTS REPORT",
+        `Period: ${period === 'all' ? 'All Time' : period === '30days' ? '30 Days' : '7 Days'}`,
+        `Generated: ${new Date().toLocaleString()}`,
+        "",
+        "SUMMARY",
+        `Total Products,${dataToExport.length}`,
+        `Total Units Sold,${totalUnitsSold}`,
+        `Total Revenue,₱${totalRevenue.toLocaleString()}`,
+        "",
+        "TOP PRODUCTS",
+        "Rank,Product,Units Sold,Revenue (₱),Avg Price (₱),Trend (%)"
+      ];
+      const dataLines = dataToExport.map((r: any, idx: number) => 
+        `${idx + 1},${r.name.replaceAll(",", " ")},${r.sold},${r.revenue},${(r.revenue / r.sold).toFixed(2)},${r.trend >= 0 ? '+' : ''}${r.trend}`
+      );
+      const csv = [...summaryLines, ...dataLines].join("\n");
       const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -40,16 +52,36 @@ export default function TopProductsCard() {
       a.click();
       URL.revokeObjectURL(url);
     } else if (exportFileType === "xlsx") {
-      const worksheet = XLSX.utils.json_to_sheet(extendedTopProducts.map((r: any, idx: number) => ({
+      const workbook = XLSX.utils.book_new();
+      
+      // Summary Sheet
+      const summaryData = [
+        ['TOP SELLING PRODUCTS REPORT'],
+        ['Period', period === 'all' ? 'All Time' : period === '30days' ? '30 Days' : '7 Days'],
+        ['Generated', new Date().toLocaleString()],
+        [],
+        ['SUMMARY'],
+        ['Total Products', dataToExport.length],
+        ['Total Units Sold', totalUnitsSold],
+        ['Total Revenue (₱)', totalRevenue],
+      ];
+      const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
+      summarySheet['!cols'] = [{ wch: 20 }, { wch: 20 }];
+      XLSX.utils.book_append_sheet(workbook, summarySheet, 'Summary');
+      
+      // Products Sheet
+      const productsSheet = XLSX.utils.json_to_sheet(dataToExport.map((r: any, idx: number) => ({
         'Rank': idx + 1,
         'Product': r.name,
         'Units Sold': r.sold,
         'Revenue (₱)': r.revenue,
-        'Trend': r.trend
+        'Avg Price (₱)': (r.revenue / r.sold).toFixed(2),
+        'Revenue %': `${((r.revenue / totalRevenue) * 100).toFixed(1)}%`,
+        'Trend (%)': `${r.trend >= 0 ? '+' : ''}${r.trend}%`
       })));
-      worksheet['!cols'] = [{ wch: 8 }, { wch: 25 }, { wch: 12 }, { wch: 15 }, { wch: 10 }];
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, 'Top Products');
+      productsSheet['!cols'] = [{ wch: 8 }, { wch: 25 }, { wch: 12 }, { wch: 15 }, { wch: 15 }, { wch: 12 }, { wch: 12 }];
+      XLSX.utils.book_append_sheet(workbook, productsSheet, 'Top Products');
+      
       XLSX.writeFile(workbook, `top-products-${timestamp}.xlsx`);
     }
     setIsExportOpen(false);
@@ -74,14 +106,17 @@ export default function TopProductsCard() {
           <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
             Track your best-performing products based on sales volume and revenue generated.
           </p>
+          {isLoading ? (
+            <div className="flex justify-center items-center h-64">
+              <p className="text-gray-500">Loading...</p>
+            </div>
+          ) : topFiveProducts.length === 0 ? (
+            <div className="bg-white/50 dark:bg-gray-950/30 rounded-lg p-8 text-center">
+              <p className="text-gray-500 dark:text-gray-400">No sales data available yet</p>
+            </div>
+          ) : (
           <div className="space-y-2 bg-white/50 dark:bg-gray-950/30 rounded-lg p-4">
-            {[
-              { name: "Wireless Earbuds", sold: 145, revenue: "₱14,500" },
-              { name: "Smartphone X", sold: 89, revenue: "₱62,211" },
-              { name: "Running Shoes", sold: 76, revenue: "₱6,840" },
-              { name: "Coffee Maker", sold: 64, revenue: "₱5,759" },
-              { name: "Laptop Pro 15\"", sold: 52, revenue: "₱67,548" },
-            ].map((product, idx) => (
+            {topFiveProducts.map((product: any, idx: number) => (
               <div key={idx} className="flex items-center justify-between p-2 bg-white dark:bg-gray-900 rounded-lg hover:shadow-sm transition-shadow">
                 <div className="flex items-center gap-3 flex-1 min-w-0">
                   <div className="flex-shrink-0 w-6 h-6 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
@@ -93,11 +128,12 @@ export default function TopProductsCard() {
                   </div>
                 </div>
                 <div className="text-right flex-shrink-0 ml-2">
-                  <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">{product.revenue}</p>
+                  <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">₱{product.revenue.toLocaleString()}</p>
                 </div>
               </div>
             ))}
           </div>
+          )}
           <div className="mt-4 flex gap-2">
             <Button size="sm" color="success" variant="flat" className="flex-1" onPress={() => setIsModalOpen(true)}>
               View Details
@@ -124,7 +160,7 @@ export default function TopProductsCard() {
           <ModalBody className="py-6">
             <div className="space-y-6">
               <div className="grid grid-cols-3 gap-4">
-                {extendedTopProducts.slice(0, 3).map((product, idx) => (
+                {extendedTopProducts.slice(0, 3).map((product: any, idx: number) => (
                   <div key={idx} className="p-4 bg-gradient-to-br from-green-50 to-green-100 dark:from-gray-800 dark:to-gray-900 rounded-lg border-2 border-green-200 dark:border-green-700">
                     <div className="flex items-center gap-2 mb-2">
                       <div className="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center">
@@ -151,7 +187,7 @@ export default function TopProductsCard() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                    {extendedTopProducts.map((product, idx) => (
+                    {extendedTopProducts.map((product: any, idx: number) => (
                       <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
                         <td className="px-6 py-4">
                           <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-700">
@@ -204,7 +240,7 @@ export default function TopProductsCard() {
               </div>
               <div className="p-3 bg-green-50 dark:bg-gray-800 rounded-lg">
                 <p className="text-xs text-gray-600 dark:text-gray-400">
-                  <strong>Export includes:</strong> Top 10 products with rankings, units sold, revenue, and growth trends.
+                  <strong>Export includes:</strong> Top {extendedTopProducts.length} products with rankings, units sold, revenue, and growth trends.
                 </p>
               </div>
             </div>

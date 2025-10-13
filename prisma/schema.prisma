@@ -28,6 +28,7 @@ model Product {
   updatedAt  DateTime @updatedAt
   categoryId String   @db.ObjectId
   category   Category @relation(fields: [categoryId], references: [id])
+  sales      Sale[]
   movements  StockMovement[]
 }
 
@@ -37,6 +38,18 @@ model Category {
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   products  Product[]
+}
+
+model Sale {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  productId   String   @db.ObjectId
+  product     Product  @relation(fields: [productId], references: [id])
+  quantity    Int
+  unitPrice   Float
+  totalAmount Float
+  refId       String?  // Link to order/transaction
+  userId      String?  // Who made the sale
+  createdAt   DateTime @default(now())
 }
 
 model StockMovement {

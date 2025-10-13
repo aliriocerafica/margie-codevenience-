@@ -11,6 +11,7 @@ export type ScannedProduct = {
     price: string | number;
     quantity: number;
     status?: "available" | "low_stock" | "out_of_stock";
+    stock?: number; // Available stock quantity
 };
 
 export type ScannedProductsTableProps = {
@@ -18,9 +19,10 @@ export type ScannedProductsTableProps = {
     onIncrease?: (id: string) => void;
     onDecrease?: (id: string) => void;
     onRemove?: (id: string) => void;
+    onQuantityChange?: (id: string, quantity: number) => void;
 };
 
-export const ScannedProductsTable: React.FC<ScannedProductsTableProps> = ({ items, onIncrease, onDecrease, onRemove }) => {
+export const ScannedProductsTable: React.FC<ScannedProductsTableProps> = ({ items, onIncrease, onDecrease, onRemove, onQuantityChange }) => {
     const toNumber = (value: string | number): number => {
         if (typeof value === "number") return value;
         const cleaned = value.replace(/[^0-9.]/g, "");
@@ -64,22 +66,59 @@ export const ScannedProductsTable: React.FC<ScannedProductsTableProps> = ({ item
                                 {typeof item.price === "string" ? item.price : formatCurrency(item.price)}
                             </td>
                             <td className="px-4 py-3">
-                                <div className="flex items-center justify-center gap-2">
-                                    <button
-                                        type="button"
-                                        onClick={() => onDecrease?.(item.id)}
-                                        className="px-2 py-1 rounded-lg border border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800"
-                                    >
-                                        -
-                                    </button>
-                                    <span className="w-6 text-center text-sm">{item.quantity}</span>
-                                    <button
-                                        type="button"
-                                        onClick={() => onIncrease?.(item.id)}
-                                        className="px-2 py-1 rounded-lg border border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800"
-                                    >
-                                        +
-                                    </button>
+                                <div className="flex flex-col items-center gap-1">
+                                    <div className="flex items-center justify-center gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => onDecrease?.(item.id)}
+                                            className="px-2 py-1 rounded-lg border border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800"
+                                        >
+                                            -
+                                        </button>
+                                        <input
+                                            type="text"
+                                            value={item.quantity}
+                                            onChange={(e) => {
+                                                const value = e.target.value.replace(/[^0-9]/g, '');
+                                                const newQuantity = parseInt(value) || 1;
+                                                onQuantityChange?.(item.id, newQuantity);
+                                            }}
+                                            onKeyDown={(e) => {
+                                                // Allow: backspace, delete, tab, escape, enter
+                                                if ([46, 8, 9, 27, 13].indexOf(e.keyCode) !== -1 ||
+                                                    // Allow: Ctrl+A, Ctrl+C, Ctrl+V, Ctrl+X
+                                                    (e.keyCode === 65 && e.ctrlKey === true) ||
+                                                    (e.keyCode === 67 && e.ctrlKey === true) ||
+                                                    (e.keyCode === 86 && e.ctrlKey === true) ||
+                                                    (e.keyCode === 88 && e.ctrlKey === true) ||
+                                                    // Allow: home, end, left, right
+                                                    (e.keyCode >= 35 && e.keyCode <= 39)) {
+                                                    return;
+                                                }
+                                                // Ensure that it is a number and stop the keypress
+                                                if ((e.shiftKey || (e.keyCode < 48 || e.keyCode > 57)) && (e.keyCode < 96 || e.keyCode > 105)) {
+                                                    e.preventDefault();
+                                                }
+                                            }}
+                                            className={`w-12 text-center text-sm border rounded-lg px-2 py-1 bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 ${
+                                                item.stock && item.quantity > item.stock 
+                                                    ? 'border-red-500 focus:ring-red-500' 
+                                                    : 'border-gray-200 dark:border-gray-800 focus:ring-blue-500'
+                                            }`}
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => onIncrease?.(item.id)}
+                                            className="px-2 py-1 rounded-lg border border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800"
+                                        >
+                                            +
+                                        </button>
+                                    </div>
+                                    {item.stock && item.quantity > item.stock && (
+                                        <div className="text-xs text-red-600 dark:text-red-400 text-center">
+                                            Only {item.stock} available
+                                        </div>
+                                    )}
                                 </div>
                             </td>
                             <td className="px-4 py-3 text-sm text-right">{formatCurrency(getLineTotal(item.price, item.quantity))}</td>

@@ -38,6 +38,15 @@ export const ReceiptPanel: React.FC<ReceiptPanelProps> = ({ items, onClearItems 
             });
             return;
         }
+
+        // Client-side stock validation
+        const insufficientStockItems: string[] = [];
+        for (const item of items) {
+            // Get current stock from the item's status or fetch from API
+            // For now, we'll rely on server-side validation, but this could be enhanced
+            // to fetch real-time stock levels before checkout
+        }
+
         const taxAmount = (Math.max(0, subtotal - discount) * taxRate) / 100;
         const total = Math.max(0, subtotal - discount) + taxAmount;
 
@@ -53,13 +62,28 @@ export const ReceiptPanel: React.FC<ReceiptPanelProps> = ({ items, onClearItems 
             if (!response.ok) {
                 try {
                     const err = await response.json();
-                    console.error("Checkout failed:", err);
-                } catch {}
-                showNotification({
-                    title: 'Checkout Failed',
-                    description: 'Unable to update stock. Please try again.',
-                    type: 'error'
-                });
+                    
+                    // Handle insufficient stock error specifically
+                    if (err.error === "Insufficient stock" && err.details) {
+                        showNotification({
+                            title: 'Insufficient Stock',
+                            description: err.details.join(', '),
+                            type: 'error'
+                        });
+                    } else {
+                        showNotification({
+                            title: 'Checkout Failed',
+                            description: err.message || err.error || 'Unable to update stock. Please try again.',
+                            type: 'error'
+                        });
+                    }
+                } catch (parseError) {
+                    showNotification({
+                        title: 'Checkout Failed',
+                        description: 'Unable to update stock. Please try again.',
+                        type: 'error'
+                    });
+                }
                 return;
             }
             const data = await response.json();

@@ -4,31 +4,53 @@ import { Card, CardHeader, CardBody, Button, Modal, ModalContent, ModalHeader, M
 import { TrendingUp, Download } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
 import { useState } from "react";
+import useSWR from "swr";
 import * as XLSX from 'xlsx';
 
-const extendedRevenueData = [
-  { period: 'Week 1', revenue: 22450, growth: 12.3 },
-  { period: 'Week 2', revenue: 26800, growth: 15.8 },
-  { period: 'Week 3', revenue: 24680, growth: 8.2 },
-  { period: 'Week 4', revenue: 28450, growth: 15.3 },
-  { period: 'Week 5', revenue: 31200, growth: 18.5 },
-  { period: 'Week 6', revenue: 29800, growth: 16.7 },
-];
+const fetcher = (url: string) => fetch(url).then(r => r.json());
 
 export default function RevenueTrendsCard() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isExportOpen, setIsExportOpen] = useState(false);
   const [exportFileType, setExportFileType] = useState<string>("xlsx");
+  const [period, setPeriod] = useState<string>("6weeks");
+
+  // Fetch data
+  const { data, error, isLoading } = useSWR(`/api/reports/revenue-trends?period=${period}`, fetcher);
+
+  const extendedRevenueData = data?.chartData || [];
+  const summary = data?.summary || {
+    totalRevenue: 0,
+    avgRevenue: 0,
+    peakRevenue: 0,
+    peakPeriod: '',
+    overallGrowth: 0,
+  };
 
   const exportRevenueTrends = () => {
     const timestamp = new Date().toISOString().slice(0, 10);
+    const dataToExport = extendedRevenueData;
     
     if (exportFileType === "csv") {
-      const header = ["Period", "Revenue", "Growth %"];
-      const lines = extendedRevenueData.map((r: any) => [
-        r.period, r.revenue, r.growth
-      ].join(","));
-      const csv = [header.join(","), ...lines].join("\n");
+      const summaryLines = [
+        "REVENUE TRENDS REPORT",
+        `Period: ${period === '6months' ? '6 Months' : '6 Weeks'}`,
+        `Generated: ${new Date().toLocaleString()}`,
+        "",
+        "SUMMARY",
+        `Total Revenue,₱${summary.totalRevenue.toLocaleString()}`,
+        `Average Revenue,₱${summary.avgRevenue.toLocaleString()}`,
+        `Peak Revenue,₱${summary.peakRevenue.toLocaleString()}`,
+        `Peak Period,${summary.peakPeriod}`,
+        `Overall Growth,${summary.overallGrowth >= 0 ? '+' : ''}${summary.overallGrowth}%`,
+        "",
+        "PERIOD BREAKDOWN",
+        "Period,Revenue (₱),Growth (%)"
+      ];
+      const dataLines = dataToExport.map((r: any) => 
+        `${r.period},${r.revenue},${r.growth >= 0 ? '+' : ''}${r.growth}`
+      );
+      const csv = [...summaryLines, ...dataLines].join("\n");
       const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -37,14 +59,34 @@ export default function RevenueTrendsCard() {
       a.click();
       URL.revokeObjectURL(url);
     } else if (exportFileType === "xlsx") {
-      const worksheet = XLSX.utils.json_to_sheet(extendedRevenueData.map((r: any) => ({
+      const workbook = XLSX.utils.book_new();
+      
+      // Summary Sheet
+      const summaryData = [
+        ['REVENUE TRENDS REPORT'],
+        ['Period', period === '6months' ? '6 Months' : '6 Weeks'],
+        ['Generated', new Date().toLocaleString()],
+        [],
+        ['SUMMARY'],
+        ['Total Revenue (₱)', summary.totalRevenue],
+        ['Average Revenue (₱)', summary.avgRevenue],
+        ['Peak Revenue (₱)', summary.peakRevenue],
+        ['Peak Period', summary.peakPeriod],
+        ['Overall Growth (%)', summary.overallGrowth],
+      ];
+      const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
+      summarySheet['!cols'] = [{ wch: 20 }, { wch: 20 }];
+      XLSX.utils.book_append_sheet(workbook, summarySheet, 'Summary');
+      
+      // Trends Sheet
+      const trendsSheet = XLSX.utils.json_to_sheet(dataToExport.map((r: any) => ({
         'Period': r.period,
         'Revenue (₱)': r.revenue,
-        'Growth (%)': r.growth
+        'Growth (%)': `${r.growth >= 0 ? '+' : ''}${r.growth}%`
       })));
-      worksheet['!cols'] = [{ wch: 12 }, { wch: 15 }, { wch: 12 }];
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, 'Revenue Trends');
+      trendsSheet['!cols'] = [{ wch: 15 }, { wch: 15 }, { wch: 12 }];
+      XLSX.utils.book_append_sheet(workbook, trendsSheet, 'Revenue Trends');
+      
       XLSX.writeFile(workbook, `revenue-trends-${timestamp}.xlsx`);
     }
     setIsExportOpen(false);
@@ -69,29 +111,36 @@ export default function RevenueTrendsCard() {
           <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
             Monitor revenue patterns and identify growth opportunities across different time periods.
           </p>
+          {isLoading ? (
+            <div className="flex justify-center items-center h-64">
+              <p className="text-gray-500">Loading...</p>
+            </div>
+          ) : extendedRevenueData.length === 0 ? (
+            <div className="bg-white/50 dark:bg-gray-950/30 rounded-lg p-8 text-center">
+              <p className="text-gray-500 dark:text-gray-400">No revenue data available yet</p>
+            </div>
+          ) : (
+          <>
           <div className="space-y-3 bg-white/50 dark:bg-gray-950/30 rounded-lg p-4">
-            {[
-              { period: "This Week", revenue: "₱28,450", change: "+15.3%", positive: true },
-              { period: "Last Week", revenue: "₱24,680", change: "+8.2%", positive: true },
-              { period: "This Month", revenue: "₱124,580", change: "+18.2%", positive: true },
-              { period: "Last Month", revenue: "₱105,450", change: "+12.1%", positive: true },
-            ].map((trend, idx) => (
+            {extendedRevenueData.map((trend: any, idx: number) => (
               <div key={idx} className="flex items-center justify-between p-3 bg-white dark:bg-gray-900 rounded-lg shadow-sm">
                 <div>
                   <p className="text-xs text-gray-500 dark:text-gray-400">{trend.period}</p>
-                  <p className="text-lg font-bold text-gray-900 dark:text-gray-100">{trend.revenue}</p>
+                  <p className="text-lg font-bold text-gray-900 dark:text-gray-100">₱{trend.revenue.toLocaleString()}</p>
                 </div>
-                <div className={`flex items-center gap-1 ${trend.positive ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                  {trend.positive ? (
+                <div className={`flex items-center gap-1 ${trend.growth >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                  {trend.growth >= 0 ? (
                     <TrendingUp className="h-4 w-4" />
                   ) : (
                     <TrendingUp className="h-4 w-4 rotate-180" />
                   )}
-                  <span className="text-sm font-semibold">{trend.change}</span>
+                  <span className="text-sm font-semibold">{trend.growth >= 0 ? '+' : ''}{trend.growth}%</span>
                 </div>
               </div>
             ))}
           </div>
+          </>
+          )}
           <div className="mt-4 flex gap-2">
             <Button size="sm" color="secondary" variant="flat" className="flex-1" onPress={() => setIsModalOpen(true)}>
               View Details
@@ -119,24 +168,24 @@ export default function RevenueTrendsCard() {
             <div className="space-y-6">
               <div className="grid grid-cols-2 gap-4">
                 <div className="p-4 bg-purple-50 dark:bg-gray-800 rounded-lg">
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Average Weekly Revenue</p>
-                  <p className="text-3xl font-bold text-gray-900 dark:text-gray-100">₱27,230</p>
-                  <div className="text-green-600 dark:text-green-400 flex items-center gap-1 mt-1">
-                    <TrendingUp className="h-4 w-4" />
-                    <span className="text-sm font-semibold">+14.5% average growth</span>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Average {period === '6months' ? 'Monthly' : 'Weekly'} Revenue</p>
+                  <p className="text-3xl font-bold text-gray-900 dark:text-gray-100">₱{summary.avgRevenue.toLocaleString()}</p>
+                  <div className={`flex items-center gap-1 mt-1 ${summary.overallGrowth >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                    <TrendingUp className={`h-4 w-4 ${summary.overallGrowth < 0 ? 'rotate-180' : ''}`} />
+                    <span className="text-sm font-semibold">{summary.overallGrowth >= 0 ? '+' : ''}{summary.overallGrowth}% overall growth</span>
                   </div>
                 </div>
                 <div className="p-4 bg-blue-50 dark:bg-gray-800 rounded-lg">
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Peak Week Revenue</p>
-                  <p className="text-3xl font-bold text-gray-900 dark:text-gray-100">₱31,200</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Peak Period Revenue</p>
+                  <p className="text-3xl font-bold text-gray-900 dark:text-gray-100">₱{summary.peakRevenue.toLocaleString()}</p>
                   <div className="text-purple-600 dark:text-purple-400 flex items-center gap-1 mt-1">
-                    <span className="text-sm font-semibold">Week 5 performance</span>
+                    <span className="text-sm font-semibold">{summary.peakPeriod || 'N/A'} performance</span>
                   </div>
                 </div>
               </div>
 
               <div className="bg-white dark:bg-gray-900 p-6 rounded-lg border border-gray-200 dark:border-gray-700">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Weekly Revenue Trend</h3>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">{period === '6months' ? 'Monthly' : 'Weekly'} Revenue Trend</h3>
                 <div className="h-80">
                   <ResponsiveContainer width="100%" height="100%">
                     <AreaChart data={extendedRevenueData}>
@@ -160,7 +209,7 @@ export default function RevenueTrendsCard() {
               </div>
 
               <div className="bg-white dark:bg-gray-900 p-6 rounded-lg border border-gray-200 dark:border-gray-700">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Growth Rate by Week</h3>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Growth Rate by {period === '6months' ? 'Month' : 'Week'}</h3>
                 <div className="h-64">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={extendedRevenueData}>
@@ -209,7 +258,7 @@ export default function RevenueTrendsCard() {
               </div>
               <div className="p-3 bg-purple-50 dark:bg-gray-800 rounded-lg">
                 <p className="text-xs text-gray-600 dark:text-gray-400">
-                  <strong>Export includes:</strong> 6 weeks of revenue data with weekly totals and growth percentages.
+                  <strong>Export includes:</strong> {period === '6months' ? '6 months' : '6 weeks'} of revenue data with period totals and growth percentages.
                 </p>
               </div>
             </div>
