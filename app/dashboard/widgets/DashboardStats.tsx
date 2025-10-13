@@ -14,7 +14,7 @@ export const DashboardStatsCard: React.FC<{ stat: DashboardStat }> = ({ stat }) 
   return (
     <Card className="border border-gray-200 dark:border-gray-800 bg-white dark:bg-black hover:shadow-lg transition-shadow duration-200">
       <CardBody className="p-6">
-        <div className="flex items-center justify-between">
+        <div className="flex items-start justify-between">
           <div className="flex-1">
             <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
               {stat.title}
