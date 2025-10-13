@@ -22,17 +22,19 @@ export const DashboardStatsCard: React.FC<{ stat: DashboardStat }> = ({ stat }) 
             <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
               {stat.value}
             </p>
-            <p
-              className={`text-sm mt-1 font-medium ${
-                stat.changeType === "positive"
-                  ? "text-green-600 dark:text-green-400"
-                  : stat.changeType === "negative"
-                  ? "text-red-600 dark:text-red-400"
-                  : "text-gray-500 dark:text-gray-400"
-              }`}
-            >
-              {stat.change} from last month
-            </p>
+            {stat.change && (
+              <p
+                className={`text-sm mt-1 font-medium ${
+                  stat.changeType === "positive"
+                    ? "text-green-600 dark:text-green-400"
+                    : stat.changeType === "negative"
+                    ? "text-red-600 dark:text-red-400"
+                    : "text-gray-500 dark:text-gray-400"
+                }`}
+              >
+                {stat.change}
+              </p>
+            )}
           </div>
           <div className="p-3 bg-gradient-to-r from-[#003366]/10 to-[#004488]/10 dark:from-[#003366]/20 dark:to-[#004488]/20 rounded-xl">
             <Icon className="h-6 w-6 text-[#003366] dark:text-[#4488cc]" />

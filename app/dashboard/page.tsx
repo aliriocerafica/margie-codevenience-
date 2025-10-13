@@ -25,7 +25,7 @@ export default function DashboardPage() {
 	// Enable page highlighting for search results
 	usePageHighlight();
 
-	const { data: statsData, error: statsError, isLoading: statsLoading } = useSWR<{ products: number; orders: number; users: number }>("/api/dashboard", fetcher);
+	const { data: statsData, error: statsError, isLoading: statsLoading } = useSWR<{ products: number; categories: number; users: number; todaySales: number; salesGrowth: number }>("/api/dashboard", fetcher);
 	const { data: recentProductsData, error: productsError, isLoading: productsLoading } = useSWR<any[]>("/api/product", fetcher);
 
     // Removed global click navigation that interfered with in-page links
@@ -35,14 +35,18 @@ export default function DashboardPage() {
 		if (!statsData) return [
 			{ title: "Total Products", value: "-", change: "", changeType: "neutral", icon: Package },
 			{ title: "Categories", value: "-", change: "", changeType: "neutral", icon: Tag },
-			{ title: "Total Sales", value: "₱0", change: "", changeType: "neutral", icon: DollarSign },
+			{ title: "Today's Sales", value: "₱0", change: "", changeType: "neutral", icon: DollarSign },
 			{ title: "Active Users", value: "-", change: "", changeType: "neutral", icon: Users }
 		];
+		
+		const salesChangeType = statsData.salesGrowth > 0 ? "positive" : statsData.salesGrowth < 0 ? "negative" : "neutral";
+		const salesChange = statsData.salesGrowth !== 0 ? `${statsData.salesGrowth >= 0 ? '+' : ''}${statsData.salesGrowth}%` : "0%";
+		
 		return [
-			{ title: "Total Products", value: String(statsData.products), change: "+0%", changeType: "neutral", icon: Package },
-			{ title: "Categories", value: String(statsData.orders), change: "+0%", changeType: "neutral", icon: Tag },
-			{ title: "Total Sales", value: "₱0", change: "+0%", changeType: "neutral", icon: DollarSign },
-			{ title: "Active Users", value: String(statsData.users), change: "+0%", changeType: "neutral", icon: Users }
+			{ title: "Total Products", value: String(statsData.products), change: "", changeType: "neutral", icon: Package },
+			{ title: "Categories", value: String(statsData.categories), change: "", changeType: "neutral", icon: Tag },
+			{ title: "Today's Sales", value: `₱${statsData.todaySales.toLocaleString()}`, change: `${salesChange} vs yesterday`, changeType: salesChangeType, icon: DollarSign },
+			{ title: "Active Users", value: String(statsData.users), change: "", changeType: "neutral", icon: Users }
 		];
 	}, [statsData]);
 
