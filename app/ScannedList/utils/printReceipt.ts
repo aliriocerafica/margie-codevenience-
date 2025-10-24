@@ -13,7 +13,6 @@ export type ReceiptPayload = {
     items: ReceiptItem[];
     subtotal: number;
     discount: number;
-    taxAmount: number;
     total: number;
     paidAmount?: number;
     change?: number;
@@ -123,7 +122,7 @@ export const buildReceiptHtml = (data: ReceiptPayload) => {
         <div class="totals">
             <div class="row"><span>Subtotal</span><span>${formatCurrency(data.subtotal)}</span></div>
             ${showDiscount ? `<div class="row"><span>Discount</span><span>- ${formatCurrency(data.discount)}</span></div>` : ''}
-            <div class="row"><span>Tax</span><span>${formatCurrency(data.taxAmount)}</span></div>
+            
             <div class="sep"></div>
             <div class="row em"><span>Total</span><span>${formatCurrency(data.total)}</span></div>
         </div>

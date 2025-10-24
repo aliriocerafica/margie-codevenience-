@@ -12,13 +12,12 @@ export type ReceiptLine = {
 export type ReceiptSummaryProps = {
     subtotal: number;
     discount: number; // absolute amount
-    taxRatePercent: number; // e.g. 12 for 12%
     additionalFees?: ReceiptLine[];
     onCheckout?: () => void;
     onClear?: () => void;
 };
 
-export const ReceiptSummary: React.FC<ReceiptSummaryProps> = ({ subtotal, discount, taxRatePercent, additionalFees = [], onCheckout, onClear }) => {
+export const ReceiptSummary: React.FC<ReceiptSummaryProps> = ({ subtotal, discount, additionalFees = [], onCheckout, onClear }) => {
     const formatCurrency2dp = (amount: number) => {
         return new Intl.NumberFormat('en-PH', {
             style: 'currency',
@@ -28,9 +27,8 @@ export const ReceiptSummary: React.FC<ReceiptSummaryProps> = ({ subtotal, discou
         }).format(amount);
     };
     const taxableBase = Math.max(0, subtotal - discount);
-    const taxAmount = (taxableBase * taxRatePercent) / 100;
     const feesTotal = additionalFees.reduce((sum, f) => sum + f.value, 0);
-    const grandTotal = Math.max(0, taxableBase + taxAmount + feesTotal);
+    const grandTotal = Math.max(0, taxableBase + feesTotal);
 
     return (
         <div className="rounded-xl border border-gray-200 dark:border-gray-800 p-5 bg-white dark:bg-gray-900 space-y-4">
@@ -44,10 +42,6 @@ export const ReceiptSummary: React.FC<ReceiptSummaryProps> = ({ subtotal, discou
                 <div className="flex items-center justify-between">
                     <span className="text-gray-600 dark:text-gray-400">Discount</span>
                     <span className="font-medium text-rose-600">- {formatCurrency2dp(discount)}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                    <span className="text-gray-600 dark:text-gray-400">Tax ({taxRatePercent}%)</span>
-                    <span className="font-medium">{formatCurrency2dp(taxAmount)}</span>
                 </div>
                 {additionalFees.map((f, idx) => (
                     <div key={idx} className="flex items-center justify-between">

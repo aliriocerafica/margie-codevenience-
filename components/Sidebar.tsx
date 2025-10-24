@@ -28,7 +28,6 @@ import {
     Menu,
     X,
     User,
-    HelpCircle,
     ChevronLeft,
     ChevronRight,
     Grid3X3,
@@ -120,14 +119,9 @@ export default function Sidebar({ children }: SidebarProps) {
 
     const utilityItems = [
         {
-            name: "Settings",
+            name: "General Settings",
             icon: Settings,
             onClick: () => setIsSettingsOpen(true),
-            hasNotification: false,
-        },
-        {
-            name: "Help & Support",
-            icon: HelpCircle,
             hasNotification: false,
         },
     ];
@@ -302,9 +296,6 @@ export default function Sidebar({ children }: SidebarProps) {
                                         >
                                             Profile
                                         </DropdownItem>
-                                        <DropdownItem key="settings" startContent={<Settings className="h-4 w-4" />}>
-                                            Settings
-                                        </DropdownItem>
                                         <DropdownItem
                                             key="logout"
                                             className="text-danger"
@@ -330,10 +321,10 @@ export default function Sidebar({ children }: SidebarProps) {
                                             className="bg-yellow-100 text-yellow-800"
                                         />
                                         <div className="text-left ml-3">
-                                            <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center">
+                                            <p className="text-xs text-white flex items-center">
                                                 Welcome back 👋
                                             </p>
-                                            <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{session?.user.role}</p>
+                                            <p className="text-sm font-medium text-white">{session?.user.role}</p>
                                         </div>
                                         <ChevronRight className="h-4 w-4 ml-auto text-gray-400" />
                                     </Button>
@@ -345,9 +336,6 @@ export default function Sidebar({ children }: SidebarProps) {
                                         onPress={() => router.push("/profile")}
                                     >
                                         Profile
-                                    </DropdownItem>
-                                    <DropdownItem key="settings" startContent={<Settings className="h-4 w-4" />}>
-                                        Settings
                                     </DropdownItem>
                                     <DropdownItem
                                         key="logout"
@@ -477,10 +465,10 @@ export default function Sidebar({ children }: SidebarProps) {
                                             className="bg-yellow-100 text-yellow-800 flex-shrink-0"
                                         />
                                         <div className="text-left ml-3">
-                                            <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center">
+                                            <p className="text-xs text-white flex items-center">
                                                 Welcome back 👋
                                             </p>
-                                            <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{session?.user.role}</p>
+                                            <p className="text-sm font-medium text-white">{session?.user.role}</p>
                                         </div>
                                         <ChevronRight className="h-4 w-4 ml-auto text-gray-400" />
                                     </Button>
@@ -492,9 +480,6 @@ export default function Sidebar({ children }: SidebarProps) {
                                         onPress={() => router.push("/profile")}
                                     >
                                         Profile
-                                    </DropdownItem>
-                                    <DropdownItem key="settings" startContent={<Settings className="h-4 w-4" />}>
-                                        Settings
                                     </DropdownItem>
                                     <DropdownItem
                                         key="logout"

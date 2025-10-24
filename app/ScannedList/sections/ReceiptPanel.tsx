@@ -3,7 +3,7 @@
 import React, { useMemo, useState } from "react";
 import { ReceiptSummary } from "../components/ReceiptSummary";
 import { ScannedProduct } from "../components/ScannedProductsTable";
-import { printReceipt } from "../utils/printReceipt";
+import { ReceiptModal } from "../components/ReceiptModal";
 import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button } from "@heroui/react";
 import { useNotifications } from "@/contexts/NotificationContext";
 
@@ -14,8 +14,9 @@ export type ReceiptPanelProps = {
 
 export const ReceiptPanel: React.FC<ReceiptPanelProps> = ({ items, onClearItems }) => {
     const [discount, setDiscount] = useState<number>(0);
-    const [taxRate, setTaxRate] = useState<number>(12);
     const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+    const [isReceiptOpen, setIsReceiptOpen] = useState(false);
+    const [receiptData, setReceiptData] = useState<any>(null);
     const [pendingSummary, setPendingSummary] = useState<{ low: number; out: number } | null>(null);
     const [pendingItems, setPendingItems] = useState<{ productId: string; quantity: number }[]>([]);
     const [isProcessing, setIsProcessing] = useState(false);
@@ -47,8 +48,7 @@ export const ReceiptPanel: React.FC<ReceiptPanelProps> = ({ items, onClearItems 
             // to fetch real-time stock levels before checkout
         }
 
-        const taxAmount = (Math.max(0, subtotal - discount) * taxRate) / 100;
-        const total = Math.max(0, subtotal - discount) + taxAmount;
+        const total = Math.max(0, subtotal - discount);
 
         try {
             const response = await fetch("/api/checkout", {
@@ -91,7 +91,8 @@ export const ReceiptPanel: React.FC<ReceiptPanelProps> = ({ items, onClearItems 
             // Immediately refresh notifications to show new stock alerts
             try { await refreshNotifications(); } catch {}
 
-            await printReceipt({
+            // Set receipt data and open modal
+            setReceiptData({
                 storeName: "Margie CodeVenience",
                 storePhone: "",
                 storeAddressLines: [],
@@ -104,10 +105,10 @@ export const ReceiptPanel: React.FC<ReceiptPanelProps> = ({ items, onClearItems 
                 })),
                 subtotal,
                 discount,
-                taxAmount,
                 total,
                 timestamp: new Date(),
             });
+            setIsReceiptOpen(true);
 
             const lowCount = (data?.summary?.lowNow ?? []).length;
             const outCount = (data?.summary?.outNow ?? []).length;
@@ -210,22 +211,11 @@ export const ReceiptPanel: React.FC<ReceiptPanelProps> = ({ items, onClearItems 
                         min={0}
                     />
                 </div>
-                <div className="flex items-center justify-between">
-                    <label className="text-sm text-gray-600 dark:text-gray-400">Tax Rate (%)</label>
-                    <input 
-                        type="number" 
-                        className="w-32 h-10 rounded-lg border border-gray-200 dark:border-gray-800 bg-transparent px-3"
-                        value={taxRate}
-                        onChange={e => setTaxRate(Math.max(0, Number(e.target.value || 0)))}
-                        min={0}
-                    />
-                </div>
             </div>
 
             <ReceiptSummary 
                 subtotal={subtotal}
                 discount={discount}
-                taxRatePercent={taxRate}
                 additionalFees={[]}
                 onCheckout={handleCheckout}
                 onClear={handleClear}
@@ -288,6 +278,15 @@ export const ReceiptPanel: React.FC<ReceiptPanelProps> = ({ items, onClearItems 
                     </ModalFooter>
                 </ModalContent>
             </Modal>
+
+            {/* Receipt Modal */}
+            {receiptData && (
+                <ReceiptModal
+                    isOpen={isReceiptOpen}
+                    onClose={() => setIsReceiptOpen(false)}
+                    receiptData={receiptData}
+                />
+            )}
         </div>
     );
 };

@@ -68,7 +68,7 @@ export default function DashboardPage() {
 			{/* Header */}
 			<PageHeader 
 				title="Dashboard"
-				description="Welcome to Margie CodeVenience POS System"
+				description="Welcome to Margie CodeVenience System"
 			/>
 
 			{/* Stats Grid */}

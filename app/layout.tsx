@@ -18,7 +18,7 @@ const poppins = Poppins({
 import ConditionalLayout from "@/components/ConditionalLayout";
 
 export const metadata: Metadata = {
-  title: 'Margie CodeVenience POS',
+  title: 'Margie CodeVenience',
 }
 
 export const viewport: Viewport = {

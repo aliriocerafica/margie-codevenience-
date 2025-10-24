@@ -63,7 +63,6 @@ const Navbar: React.FC = () => {
               <DropdownItem key="profile">
                 <Link href="/profile">Profile</Link>
               </DropdownItem>
-              <DropdownItem key="settings">Settings</DropdownItem>
               <DropdownItem key="logout" className="text-danger" color="danger">Logout</DropdownItem>
             </DropdownMenu>
           </Dropdown>
