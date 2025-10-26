@@ -125,10 +125,9 @@ export default function ReportsPage() {
   const stats = useMemo(() => {
     const total = rows.length;
     const sale = rows.filter((r: any) => r.type === "sale").length;
-    const refund = rows.filter((r: any) => r.type === "refund").length;
     const manual = rows.filter((r: any) => r.type === "manual").length;
     const voids = rows.filter((r: any) => r.type === "void").length;
-    return { total, sale, refund, manual, voids };
+    return { total, sale, manual, voids };
   }, [rows]);
 
   const columns = [
@@ -377,10 +376,9 @@ export default function ReportsPage() {
       </Modal>
 
       {/* Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <StatCard title="Total Movements" value={String(stats.total)} icon={BarChart3} color="blue" />
         <StatCard title="Sales Posted" value={String(stats.sale)} icon={TrendingUp} color="green" />
-        <StatCard title="Refunds Posted" value={String(stats.refund)} icon={RotateCcw} color="yellow" />
         <StatCard title="Voids Posted" value={String(stats.voids)} icon={RotateCcw} color="red" />
       </div>
 

@@ -12,7 +12,6 @@ import { StatCard } from "@/components/ui/StatCard";
 import { ProductTable } from "./components/ProductTable";
 import AddProductModal from "@/app/product/components/AddProductModal";
 import ScanBarcodePanel from "@/app/product/components/ScanBarcodePanel";
-import DeleteProductModal from "@/app/product/components/DeleteProductModal";
 import EditProductModal from "@/app/product/components/EditProductModal";
 import { LOADING_MESSAGES, ERROR_MESSAGES } from "@/lib/constants";
 import { useNotifications } from "@/contexts/NotificationContext";
@@ -24,9 +23,7 @@ const fetcher = (url: string) => fetch(url).then(res => res.json());
 const ProductWithSearchParams = () => {
     const [useBackendData] = useState(true);
     const [isAddProductModalOpen, setIsAddProductModalOpen] = useState(false);
-    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-    const [productToDelete, setProductToDelete] = useState<any>(null);
     const [productToEdit, setProductToEdit] = useState<any>(null);
     const [isScanMode, setIsScanMode] = useState(false);
     const [prefillData, setPrefillData] = useState<any>(null);
@@ -65,21 +62,12 @@ const ProductWithSearchParams = () => {
         console.log("New product added:", newProduct);
     };
 
-    const handleDeleteProduct = (product: any) => {
-        setProductToDelete(product);
-        setIsDeleteModalOpen(true);
-    };
 
     const handleEditProduct = (product: any) => {
         setProductToEdit(product);
         setIsEditModalOpen(true);
     };
 
-    const handleProductDeleted = (productId: string) => {
-        // Refresh the product list to remove the deleted product
-        mutate();
-        console.log("Product deleted:", productId);
-    };
 
     const handleProductUpdated = (updatedProduct: any) => {
         // Refresh the product list to show the updated product
@@ -99,11 +87,16 @@ const ProductWithSearchParams = () => {
         setIsScanMode(true);
     };
 
-    const handleScannedFromOFF = (data: { name?: string; imageUrl?: string; brand?: string; gtin?: string }) => {
+    const handleScannedFromOFF = (data: { name?: string; imageUrl?: string; brand?: string; gtin?: string; product?: string; quantity?: string; size?: string }) => {
         // Map OFF data to modal fields
         setPrefillData({
             name: data.name || "",
+            brand: data.brand || "",
+            product: data.product || "",
+            quantity: data.quantity || "",
+            size: data.size || "",
             price: "",
+            unitCost: "",
             stock: "",
             barcode: data.gtin || "",
             image: data.imageUrl || "",
@@ -228,6 +221,9 @@ const ProductWithSearchParams = () => {
                                                 const productData = {
                                                     name: p.product_name || p.generic_name || "",
                                                     brand: Array.isArray(p.brands_tags) && p.brands_tags.length ? p.brands_tags[0] : p.brands || "",
+                                                    product: p.generic_name || p.product_name || "",
+                                                    quantity: "", // Don't fill quantity - this should be for stock count like "1 pc"
+                                                    size: p.quantity || "", // Use OpenFoodFacts quantity for size/weight
                                                     imageUrl: p.image_front_small_url || p.image_url || "",
                                                     categories: p.categories_hierarchy || [],
                                                 };
@@ -243,8 +239,11 @@ const ProductWithSearchParams = () => {
                                                 
                                                 handleScannedFromOFF({
                                                     name: productData.name,
-                                                    imageUrl: productData.imageUrl,
                                                     brand: productData.brand,
+                                                    product: productData.product,
+                                                    quantity: productData.quantity,
+                                                    size: productData.size,
+                                                    imageUrl: productData.imageUrl,
                                                     gtin: code,
                                                 });
                                                 return;
@@ -278,7 +277,6 @@ const ProductWithSearchParams = () => {
                 isLoading={currentLoading}
                 error={currentError}
                 onEdit={handleEditProduct}
-                onDelete={handleDeleteProduct}
             />
 
             {/* Add Product Modal */}
@@ -301,13 +299,6 @@ const ProductWithSearchParams = () => {
                 initialData={prefillData || undefined}
             />
 
-            {/* Delete Product Modal */}
-            <DeleteProductModal
-                isOpen={isDeleteModalOpen}
-                onClose={() => setIsDeleteModalOpen(false)}
-                product={productToDelete}
-                onProductDeleted={handleProductDeleted}
-            />
 
             {/* Edit Product Modal */}
             <EditProductModal

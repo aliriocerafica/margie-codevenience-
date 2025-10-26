@@ -5,18 +5,26 @@ export async function GET(req: NextRequest) {
   try {
     const searchParams = req.nextUrl.searchParams;
     const limit = parseInt(searchParams.get("limit") || "10");
-    const period = searchParams.get("period") || "30days"; // 7days, 30days, all
+    const period = searchParams.get("period") || "30days"; // daily, weekly, monthly, all
 
     // Calculate date range based on period
     const now = new Date();
     let startDate: Date | undefined = undefined;
     
-    if (period === "7days") {
+    if (period === "daily") {
+      // Today only
+      startDate = new Date();
+      startDate.setHours(0, 0, 0, 0);
+    } else if (period === "weekly") {
+      // Last 7 days
       startDate = new Date();
       startDate.setDate(now.getDate() - 6);
-    } else if (period === "30days") {
+      startDate.setHours(0, 0, 0, 0);
+    } else if (period === "monthly") {
+      // Last 30 days
       startDate = new Date();
       startDate.setDate(now.getDate() - 29);
+      startDate.setHours(0, 0, 0, 0);
     }
     // If period is "all", startDate remains undefined (no filter)
 

@@ -17,10 +17,16 @@ export async function GET() {
         yesterdayEnd.setDate(yesterdayEnd.getDate() - 1);
 
         const [products, categories, users, todaySales, yesterdaySales] = await Promise.all([
-            prisma.product.count(),
+            prisma.product.count({
+                where: {
+                    status: {
+                        not: "deleted" // Exclude deleted products for consistency with products page
+                    }
+                }
+            }),
             prisma.category.count(),
             prisma.user.count(),
-            // Today's sales (positive sales only)
+            // Today's sales
             prisma.sale.findMany({
                 where: {
                     createdAt: {

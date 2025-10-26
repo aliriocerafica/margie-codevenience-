@@ -16,6 +16,9 @@ async function fetchFromOpenFoodFacts(ean13: string) {
       gtin: ean13,
       name: p.product_name || p.generic_name || "",
       brand: Array.isArray(p.brands_tags) && p.brands_tags.length ? p.brands_tags[0] : p.brands || "",
+      product: p.generic_name || p.product_name || "",
+      quantity: "", // Don't fill quantity - this should be for stock count like "1 pc"
+      size: p.quantity || "", // Use OpenFoodFacts quantity for size/weight
       imageUrl: p.image_front_small_url || p.image_url || "",
       categories: p.categories_hierarchy || [],
       nutriments: p.nutriments || {},

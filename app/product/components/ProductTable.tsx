@@ -2,7 +2,7 @@
 
 import React from "react";
 import { Chip, Button, Tooltip } from "@heroui/react";
-import { Trash2, Edit } from "lucide-react";
+import { Edit } from "lucide-react";
 import DataTable from "@/components/DataTable";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { formatCurrency, PRODUCT_STATUS_COLORS, PRODUCT_STATUS_OPTIONS } from "@/lib/constants";
@@ -12,7 +12,12 @@ import type { Product as SampleProduct } from "@/types";
 export type ProductRow = SampleProduct | {
   id: string;
   name: string;
+  brand?: string;
+  product?: string;
+  quantity?: string;
+  size?: string;
   price: string | number;
+  unitCost?: string | number;
   stock: string | number;
   status?: string;
   imageUrl?: string | null;
@@ -25,10 +30,9 @@ interface ProductTableProps {
   isLoading?: boolean;
   error?: any;
   onEdit?: (product: ProductRow) => void;
-  onDelete?: (product: ProductRow) => void;
 }
 
-export const ProductTable: React.FC<ProductTableProps> = ({ data, isLoading, error, onEdit, onDelete }) => {
+export const ProductTable: React.FC<ProductTableProps> = ({ data, isLoading, error, onEdit }) => {
   const columns = [
     { key: "id", header: "#", sortable: false, renderCell: (_row: ProductRow, index?: number) => index ?? "" },
     {
@@ -56,6 +60,18 @@ export const ProductTable: React.FC<ProductTableProps> = ({ data, isLoading, err
       )
     },
     { 
+      key: "brand", 
+      header: "Brand",
+      sortable: true,
+      renderCell: (row: ProductRow) => (
+        <div>
+          <span className="text-sm text-gray-600 dark:text-gray-400">
+            {(row as any).brand || "—"}
+          </span>
+        </div>
+      )
+    },
+    { 
       key: "category", 
       header: "Category",
       sortable: true,
@@ -71,8 +87,20 @@ export const ProductTable: React.FC<ProductTableProps> = ({ data, isLoading, err
       )
     },
     { 
+      key: "size", 
+      header: "Size/Weight",
+      sortable: true,
+      renderCell: (row: ProductRow) => (
+        <div>
+          <span className="text-sm text-gray-600 dark:text-gray-400">
+            {(row as any).size || "—"}
+          </span>
+        </div>
+      )
+    },
+    { 
       key: "price", 
-      header: "Price",
+      header: "Selling Price",
       sortable: true,
       renderCell: (row: ProductRow) => {
         const price = (row as any).price;
@@ -80,6 +108,23 @@ export const ProductTable: React.FC<ProductTableProps> = ({ data, isLoading, err
         const display = typeof price === "string" ? price : formatCurrency(price);
         return (
           <span className="font-semibold text-gray-900 dark:text-white">
+            {display}
+          </span>
+        );
+      }
+    },
+    { 
+      key: "unitCost", 
+      header: "Unit Cost",
+      sortable: true,
+      renderCell: (row: ProductRow) => {
+        const unitCost = (row as any).unitCost;
+        if (!unitCost) {
+          return <span className="text-gray-400">—</span>;
+        }
+        const display = typeof unitCost === "string" ? unitCost : formatCurrency(unitCost);
+        return (
+          <span className="text-sm text-gray-600 dark:text-gray-400">
             {display}
           </span>
         );
@@ -135,17 +180,6 @@ export const ProductTable: React.FC<ProductTableProps> = ({ data, isLoading, err
               onPress={() => onEdit?.(row)}
             >
               <Edit size={16} />
-            </Button>
-          </Tooltip>
-          <Tooltip content="Delete" placement="top">
-            <Button 
-              isIconOnly 
-              size="sm" 
-              variant="flat" 
-              color="danger" 
-              onPress={() => onDelete?.(row)}
-            >
-              <Trash2 size={16} />
             </Button>
           </Tooltip>
         </div>

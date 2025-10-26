@@ -12,7 +12,7 @@ export default function TopProductsCard() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isExportOpen, setIsExportOpen] = useState(false);
   const [exportFileType, setExportFileType] = useState<string>("xlsx");
-  const [period, setPeriod] = useState<string>("all");
+  const [period, setPeriod] = useState<string>("monthly");
 
   // Fetch data
   const { data, error, isLoading } = useSWR(`/api/reports/top-products?period=${period}&limit=10`, fetcher);
@@ -29,7 +29,7 @@ export default function TopProductsCard() {
     if (exportFileType === "csv") {
       const summaryLines = [
         "TOP SELLING PRODUCTS REPORT",
-        `Period: ${period === 'all' ? 'All Time' : period === '30days' ? '30 Days' : '7 Days'}`,
+        `Period: ${period === 'all' ? 'All Time' : period === 'monthly' ? 'Last 30 Days' : period === 'weekly' ? 'Last 7 Days' : 'Today'}`,
         `Generated: ${new Date().toLocaleString()}`,
         "",
         "SUMMARY",
@@ -57,7 +57,7 @@ export default function TopProductsCard() {
       // Summary Sheet
       const summaryData = [
         ['TOP SELLING PRODUCTS REPORT'],
-        ['Period', period === 'all' ? 'All Time' : period === '30days' ? '30 Days' : '7 Days'],
+        ['Period', period === 'all' ? 'All Time' : period === 'monthly' ? 'Last 30 Days' : period === 'weekly' ? 'Last 7 Days' : 'Today'],
         ['Generated', new Date().toLocaleString()],
         [],
         ['SUMMARY'],
@@ -159,6 +159,33 @@ export default function TopProductsCard() {
           </ModalHeader>
           <ModalBody className="py-6">
             <div className="space-y-6">
+              {/* Period Filter */}
+              <div className="flex items-center gap-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Filter by:</span>
+                  <Select
+                    selectedKeys={[period]}
+                    onSelectionChange={(keys) => {
+                      const [k] = Array.from(keys) as string[];
+                      setPeriod(k);
+                    }}
+                    size="sm"
+                    className="w-32"
+                  >
+                    <SelectItem key="daily">Daily</SelectItem>
+                    <SelectItem key="weekly">Weekly</SelectItem>
+                    <SelectItem key="monthly">Monthly</SelectItem>
+                    <SelectItem key="all">All Time</SelectItem>
+                  </Select>
+                </div>
+                <div className="text-sm text-gray-500 dark:text-gray-400">
+                  {period === "daily" && "Today's sales"}
+                  {period === "weekly" && "Last 7 days"}
+                  {period === "monthly" && "Last 30 days"}
+                  {period === "all" && "All time sales"}
+                </div>
+              </div>
+
               <div className="grid grid-cols-3 gap-4">
                 {extendedTopProducts.slice(0, 3).map((product: any, idx: number) => (
                   <div key={idx} className="p-4 bg-gradient-to-br from-green-50 to-green-100 dark:from-gray-800 dark:to-gray-900 rounded-lg border-2 border-green-200 dark:border-green-700">

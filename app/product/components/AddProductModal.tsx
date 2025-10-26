@@ -12,7 +12,9 @@ import {
   Select,
   SelectItem,
   Progress,
-  Chip
+  Chip,
+  Tabs,
+  Tab
 } from '@heroui/react';
 import {
   Package,
@@ -21,7 +23,10 @@ import {
   CheckCircle,
   AlertCircle,
   Image as ImageIcon,
-  Loader2
+  Loader2,
+  Info,
+  DollarSign,
+  Tag
 } from 'lucide-react';
 import { useNotifications } from '@/contexts/NotificationContext';
 
@@ -40,7 +45,12 @@ interface Category {
 
 interface ProductFormData {
   name: string;
+  brand: string;
+  product: string;
+  quantity: string;
+  size: string;
   price: string;
+  unitCost: string;
   stock: string;
   barcode: string;
   categoryId: string;
@@ -67,7 +77,12 @@ export default function AddProductModal({ isOpen, onClose, onProductAdded, initi
 
   const [formData, setFormData] = useState<ProductFormData>({
     name: '',
+    brand: '',
+    product: '',
+    quantity: '',
+    size: '',
     price: '',
+    unitCost: '',
     stock: '',
     barcode: '',
     categoryId: '',
@@ -80,7 +95,12 @@ export default function AddProductModal({ isOpen, onClose, onProductAdded, initi
     if (!initialData) return;
     setFormData(prev => ({
       name: initialData.name ?? prev.name,
+      brand: initialData.brand ?? prev.brand,
+      product: initialData.product ?? prev.product,
+      quantity: initialData.quantity ?? prev.quantity,
+      size: initialData.size ?? prev.size,
       price: initialData.price ?? prev.price,
+      unitCost: initialData.unitCost ?? prev.unitCost,
       stock: initialData.stock ?? prev.stock,
       barcode: initialData.barcode ?? prev.barcode,
       categoryId: initialData.categoryId ?? prev.categoryId,
@@ -151,9 +171,13 @@ export default function AddProductModal({ isOpen, onClose, onProductAdded, initi
     }
 
     if (!formData.price.trim()) {
-      newErrors.price = 'Price is required';
+      newErrors.price = 'Selling price is required';
     } else if (isNaN(Number(formData.price)) || Number(formData.price) <= 0) {
-      newErrors.price = 'Price must be a valid positive number';
+      newErrors.price = 'Selling price must be a valid positive number';
+    }
+
+    if (formData.unitCost && (isNaN(Number(formData.unitCost)) || Number(formData.unitCost) < 0)) {
+      newErrors.unitCost = 'Unit cost must be a valid non-negative number';
     }
 
     if (!formData.stock.trim()) {
@@ -367,7 +391,12 @@ export default function AddProductModal({ isOpen, onClose, onProductAdded, initi
       // Reset form and restoration data
       setFormData({
         name: '',
+        brand: '',
+        product: '',
+        quantity: '',
+        size: '',
         price: '',
+        unitCost: '',
         stock: '',
         barcode: '',
         categoryId: '',
@@ -417,7 +446,12 @@ export default function AddProductModal({ isOpen, onClose, onProductAdded, initi
       // Prepare product data
       const productData = {
         name: formData.name.trim(),
+        brand: formData.brand.trim() || null,
+        product: formData.product.trim() || null,
+        quantity: formData.quantity.trim() || null,
+        size: formData.size.trim() || null,
         price: parseFloat(formData.price.trim()).toString(),
+        unitCost: formData.unitCost.trim() ? parseFloat(formData.unitCost.trim()).toString() : null,
         stock: formData.stock.trim(),
         barcode: formData.barcode.trim() || 'na',
         categoryId: formData.categoryId,
@@ -465,7 +499,12 @@ export default function AddProductModal({ isOpen, onClose, onProductAdded, initi
       // Reset form
       setFormData({
         name: '',
+        brand: '',
+        product: '',
+        quantity: '',
+        size: '',
         price: '',
+        unitCost: '',
         stock: '',
         barcode: '',
         categoryId: '',
@@ -502,7 +541,12 @@ export default function AddProductModal({ isOpen, onClose, onProductAdded, initi
     if (!saving && !uploading) {
       setFormData({
         name: '',
+        brand: '',
+        product: '',
+        quantity: '',
+        size: '',
         price: '',
+        unitCost: '',
         stock: '',
         barcode: '',
         categoryId: '',
@@ -519,11 +563,11 @@ export default function AddProductModal({ isOpen, onClose, onProductAdded, initi
     <Modal
       isOpen={isOpen}
       onClose={handleClose}
-      size="2xl"
+      size="3xl"
       backdrop="blur"
       classNames={{
         backdrop: "bg-black/50 backdrop-blur-sm",
-        base: "border-none",
+        base: "border-none max-h-[90vh]",
         header: "border-b border-gray-200 dark:border-gray-700",
         footer: "border-t border-gray-200 dark:border-gray-700",
         closeButton: "hover:bg-gray-100 dark:hover:bg-gray-800",
@@ -551,199 +595,338 @@ export default function AddProductModal({ isOpen, onClose, onProductAdded, initi
           </p>
         </ModalHeader>
 
-        <ModalBody className="py-6">
-          <div className="space-y-6">
-            {/* Product Image Upload */}
-            <div className="space-y-3">
-              <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300">
-                Product Image
-              </label>
-
-              {previewImage ? (
-                <div className="relative">
-                  <img
-                    src={previewImage}
-                    alt="Product preview"
-                    className="w-full h-48 object-cover rounded-lg border border-gray-200 dark:border-gray-700"
-                  />
-                  <button
-                    onClick={removeImage}
-                    className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
+        <ModalBody className="py-4">
+          <Tabs 
+            aria-label="Product form tabs" 
+            classNames={{
+              tabList: "gap-6 w-full relative rounded-none p-0 border-b border-divider",
+              cursor: "w-full bg-[#003366] dark:bg-[#4A90E2]",
+              tab: "max-w-fit px-0 h-12",
+              tabContent: "group-data-[selected=true]:text-[#003366] dark:group-data-[selected=true]:text-[#4A90E2]"
+            }}
+          >
+            <Tab 
+              key="basic" 
+              title={
+                <div className="flex items-center space-x-2">
+                  <Info className="w-4 h-4" />
+                  <span>Basic Info</span>
                 </div>
-              ) : (
-                <div 
-                  className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
-                    isDragOver 
-                      ? 'border-[#003366] dark:border-[#4A90E2] bg-blue-50 dark:bg-blue-950/20' 
-                      : 'border-gray-300 dark:border-gray-600 hover:border-[#003366] dark:hover:border-[#4A90E2]'
-                  }`}
-                  onDragOver={handleDragOver}
-                  onDragLeave={handleDragLeave}
-                  onDrop={handleDrop}
-                >
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleFileSelect}
-                    className="hidden"
-                    id="image-upload"
-                    disabled={uploading}
-                  />
-                  <label
-                    htmlFor="image-upload"
-                    className={`cursor-pointer flex flex-col items-center gap-2 ${uploading ? 'cursor-not-allowed opacity-50' : ''}`}
-                  >
-                    {uploading ? (
-                      <>
-                        <Loader2 className="w-8 h-8 text-[#003366] dark:text-[#4A90E2] animate-spin" />
-                        <span className="text-sm text-gray-600 dark:text-gray-400">Uploading...</span>
-                        <Progress
-                          value={uploadProgress}
-                          className="w-full max-w-xs"
-                          color="primary"
-                        />
-                      </>
-                    ) : (
-                      <>
-                        <ImageIcon className="w-8 h-8 text-gray-400" />
-                        <span className="text-sm text-gray-600 dark:text-gray-400">
-                          {isDragOver ? 'Drop image here' : 'Click to upload, drag & drop, or paste image'}
-                        </span>
-                        <span className="text-xs text-gray-500">PNG, JPG, GIF up to 5MB</span>
-                        <div className="mt-2 flex items-center justify-center gap-4 text-xs text-gray-400">
-                          <span className="flex items-center gap-1">
-                            📁 Click to browse
-                          </span>
-                          <span className="flex items-center gap-1">
-                            🖱️ Drag & drop
-                          </span>
-                          <span className="flex items-center gap-1">
-                            📋 <kbd className="px-1 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-xs">Ctrl+V</kbd> to paste
-                          </span>
-                        </div>
-                      </>
-                    )}
+              }
+            >
+              <div className="space-y-4 pt-4">
+                {/* Product Image Upload */}
+                <div className="space-y-3">
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300">
+                    Product Image
                   </label>
+
+                  {previewImage ? (
+                    <div className="relative">
+                      <img
+                        src={previewImage}
+                        alt="Product preview"
+                        className="w-full h-32 object-cover rounded-lg border border-gray-200 dark:border-gray-700"
+                      />
+                      <button
+                        onClick={removeImage}
+                        className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div 
+                      className={`border-2 border-dashed rounded-lg p-4 text-center transition-colors ${
+                        isDragOver 
+                          ? 'border-[#003366] dark:border-[#4A90E2] bg-blue-50 dark:bg-blue-950/20' 
+                          : 'border-gray-300 dark:border-gray-600 hover:border-[#003366] dark:hover:border-[#4A90E2]'
+                      }`}
+                      onDragOver={handleDragOver}
+                      onDragLeave={handleDragLeave}
+                      onDrop={handleDrop}
+                    >
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleFileSelect}
+                        className="hidden"
+                        id="image-upload"
+                        disabled={uploading}
+                      />
+                      <label
+                        htmlFor="image-upload"
+                        className={`cursor-pointer flex flex-col items-center gap-2 ${uploading ? 'cursor-not-allowed opacity-50' : ''}`}
+                      >
+                        {uploading ? (
+                          <>
+                            <Loader2 className="w-6 h-6 text-[#003366] dark:text-[#4A90E2] animate-spin" />
+                            <span className="text-sm text-gray-600 dark:text-gray-400">Uploading...</span>
+                            <Progress
+                              value={uploadProgress}
+                              className="w-full max-w-xs"
+                              color="primary"
+                            />
+                          </>
+                        ) : (
+                          <>
+                            <ImageIcon className="w-6 h-6 text-gray-400" />
+                            <span className="text-sm text-gray-600 dark:text-gray-400">
+                              {isDragOver ? 'Drop image here' : 'Click to upload, drag & drop, or paste image'}
+                            </span>
+                            <span className="text-xs text-gray-500">PNG, JPG, GIF up to 5MB</span>
+                          </>
+                        )}
+                      </label>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
 
-            {/* Product Details */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300">
-                  Product Name *
-                </label>
-                <Input
-                  value={formData.name}
-                  onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                  placeholder="Enter product name"
-                  size="lg"
-                  isInvalid={!!errors.name}
-                  errorMessage={errors.name}
-                  classNames={{
-                    input: "text-sm py-3 px-3",
-                    inputWrapper: "h-12 border-2 border-gray-200 hover:border-[#003366] focus-within:border-[#003366] rounded-xl shadow-sm hover:shadow-md transition-all duration-200 bg-white dark:bg-gray-800 dark:border-gray-700"
-                  }}
-                />
+                {/* Basic Product Details */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300">
+                      Product Name *
+                    </label>
+                    <Input
+                      value={formData.name}
+                      onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                      placeholder="Enter product name"
+                      size="md"
+                      isInvalid={!!errors.name}
+                      errorMessage={errors.name}
+                      classNames={{
+                        input: "text-sm",
+                        inputWrapper: "h-10 border-2 border-gray-200 hover:border-[#003366] focus-within:border-[#003366] rounded-lg transition-all duration-200"
+                      }}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300">
+                      Brand
+                    </label>
+                    <Input
+                      value={formData.brand}
+                      onChange={(e) => setFormData(prev => ({ ...prev, brand: e.target.value }))}
+                      placeholder="e.g., Lucky Me, Mega"
+                      size="md"
+                      classNames={{
+                        input: "text-sm",
+                        inputWrapper: "h-10 border-2 border-gray-200 hover:border-[#003366] focus-within:border-[#003366] rounded-lg transition-all duration-200"
+                      }}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300">
+                      Product Type
+                    </label>
+                    <Input
+                      value={formData.product}
+                      onChange={(e) => setFormData(prev => ({ ...prev, product: e.target.value }))}
+                      placeholder="e.g., Pancit Canton, Sardines"
+                      size="md"
+                      classNames={{
+                        input: "text-sm",
+                        inputWrapper: "h-10 border-2 border-gray-200 hover:border-[#003366] focus-within:border-[#003366] rounded-lg transition-all duration-200"
+                      }}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300">
+                      Category *
+                    </label>
+                    <Select
+                      placeholder="Select a category"
+                      selectedKeys={formData.categoryId ? [formData.categoryId] : []}
+                      onSelectionChange={(keys) => {
+                        const selectedKey = Array.from(keys)[0] as string;
+                        setFormData(prev => ({ ...prev, categoryId: selectedKey || '' }));
+                      }}
+                      size="md"
+                      isInvalid={!!errors.categoryId}
+                      errorMessage={errors.categoryId}
+                      isLoading={loadingCategories}
+                      classNames={{
+                        trigger: "h-10 border-2 border-gray-200 hover:border-[#003366] focus-within:border-[#003366] rounded-lg transition-all duration-200",
+                        value: "text-sm"
+                      }}
+                    >
+                      {categories.map((category) => (
+                        <SelectItem key={category.id} textValue={category.name}>
+                          {category.name}
+                        </SelectItem>
+                      ))}
+                    </Select>
+                  </div>
+                </div>
               </div>
+            </Tab>
 
-              <div className="space-y-2">
-                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300">
-                  Price *
-                </label>
-                <Input
-                  value={formData.price}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    // Allow numbers, decimal point, and up to 2 decimal places
-                    if (value === '' || /^\d*\.?\d{0,2}$/.test(value)) {
-                      setFormData(prev => ({ ...prev, price: value }));
-                    }
-                  }}
-                  placeholder="0.00"
-                  size="lg"
-                  type="text"
-                  min="0"
-                  isInvalid={!!errors.price}
-                  errorMessage={errors.price}
-                  classNames={{
-                    input: "text-sm py-3 px-3",
-                    inputWrapper: "h-12 border-2 border-gray-200 hover:border-[#003366] focus-within:border-[#003366] rounded-xl shadow-sm hover:shadow-md transition-all duration-200 bg-white dark:bg-gray-800 dark:border-gray-700"
-                  }}
-                />
+            <Tab 
+              key="details" 
+              title={
+                <div className="flex items-center space-x-2">
+                  <Tag className="w-4 h-4" />
+                  <span>Details</span>
+                </div>
+              }
+            >
+              <div className="space-y-4 pt-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300">
+                      Quantity (Packaging)
+                    </label>
+                    <Input
+                      value={formData.quantity}
+                      onChange={(e) => setFormData(prev => ({ ...prev, quantity: e.target.value }))}
+                      placeholder="e.g., 1 pc, 1 can, 1 pack"
+                      size="md"
+                      classNames={{
+                        input: "text-sm",
+                        inputWrapper: "h-10 border-2 border-gray-200 hover:border-[#003366] focus-within:border-[#003366] rounded-lg transition-all duration-200"
+                      }}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300">
+                      Size/Weight
+                    </label>
+                    <Input
+                      value={formData.size}
+                      onChange={(e) => setFormData(prev => ({ ...prev, size: e.target.value }))}
+                      placeholder="e.g., 150g, 1L, 4.6 oz"
+                      size="md"
+                      classNames={{
+                        input: "text-sm",
+                        inputWrapper: "h-10 border-2 border-gray-200 hover:border-[#003366] focus-within:border-[#003366] rounded-lg transition-all duration-200"
+                      }}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300">
+                      Barcode (Optional)
+                    </label>
+                    <Input
+                      value={formData.barcode}
+                      onChange={(e) => setFormData(prev => ({ ...prev, barcode: e.target.value }))}
+                      placeholder="Enter barcode"
+                      size="md"
+                      classNames={{
+                        input: "text-sm",
+                        inputWrapper: "h-10 border-2 border-gray-200 hover:border-[#003366] focus-within:border-[#003366] rounded-lg transition-all duration-200"
+                      }}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300">
+                      Stock Quantity *
+                    </label>
+                    <Input
+                      value={formData.stock}
+                      onChange={(e) => setFormData(prev => ({ ...prev, stock: e.target.value }))}
+                      placeholder="0"
+                      size="md"
+                      type="number"
+                      min="0"
+                      isInvalid={!!errors.stock}
+                      errorMessage={errors.stock}
+                      classNames={{
+                        input: "text-sm",
+                        inputWrapper: "h-10 border-2 border-gray-200 hover:border-[#003366] focus-within:border-[#003366] rounded-lg transition-all duration-200"
+                      }}
+                    />
+                  </div>
+                </div>
               </div>
+            </Tab>
 
-              <div className="space-y-2">
-                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300">
-                  Stock Quantity *
-                </label>
-                <Input
-                  value={formData.stock}
-                  onChange={(e) => setFormData(prev => ({ ...prev, stock: e.target.value }))}
-                  placeholder="0"
-                  size="lg"
-                  type="number"
-                  min="0"
-                  isInvalid={!!errors.stock}
-                  errorMessage={errors.stock}
-                  classNames={{
-                    input: "text-sm py-3 px-3",
-                    inputWrapper: "h-12 border-2 border-gray-200 hover:border-[#003366] focus-within:border-[#003366] rounded-xl shadow-sm hover:shadow-md transition-all duration-200 bg-white dark:bg-gray-800 dark:border-gray-700"
-                  }}
-                />
+            <Tab 
+              key="pricing" 
+              title={
+                <div className="flex items-center space-x-2">
+                  <DollarSign className="w-4 h-4" />
+                  <span>Pricing</span>
+                </div>
+              }
+            >
+              <div className="space-y-4 pt-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300">
+                      Unit Cost (Original Price)
+                    </label>
+                    <Input
+                      value={formData.unitCost}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        // Allow numbers, decimal point, and up to 2 decimal places
+                        if (value === '' || /^\d*\.?\d{0,2}$/.test(value)) {
+                          setFormData(prev => ({ ...prev, unitCost: value }));
+                        }
+                      }}
+                      placeholder="0.00"
+                      size="md"
+                      type="text"
+                      min="0"
+                      isInvalid={!!errors.unitCost}
+                      errorMessage={errors.unitCost}
+                      classNames={{
+                        input: "text-sm",
+                        inputWrapper: "h-10 border-2 border-gray-200 hover:border-[#003366] focus-within:border-[#003366] rounded-lg transition-all duration-200"
+                      }}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300">
+                      Selling Price (Retail Price) *
+                    </label>
+                    <Input
+                      value={formData.price}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        // Allow numbers, decimal point, and up to 2 decimal places
+                        if (value === '' || /^\d*\.?\d{0,2}$/.test(value)) {
+                          setFormData(prev => ({ ...prev, price: value }));
+                        }
+                      }}
+                      placeholder="0.00"
+                      size="md"
+                      type="text"
+                      min="0"
+                      isInvalid={!!errors.price}
+                      errorMessage={errors.price}
+                      classNames={{
+                        input: "text-sm",
+                        inputWrapper: "h-10 border-2 border-gray-200 hover:border-[#003366] focus-within:border-[#003366] rounded-lg transition-all duration-200"
+                      }}
+                    />
+                  </div>
+                </div>
+
+                {/* Profit Margin Display */}
+                {formData.unitCost && formData.price && !isNaN(Number(formData.unitCost)) && !isNaN(Number(formData.price)) && (
+                  <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                    <div className="flex items-center gap-2 text-sm">
+                      <DollarSign className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                      <span className="font-medium text-blue-800 dark:text-blue-200">Profit Margin:</span>
+                      <span className="text-blue-700 dark:text-blue-300">
+                        ₱{(Number(formData.price) - Number(formData.unitCost)).toFixed(2)} 
+                        ({(((Number(formData.price) - Number(formData.unitCost)) / Number(formData.price)) * 100).toFixed(1)}%)
+                      </span>
+                    </div>
+                  </div>
+                )}
               </div>
-
-              <div className="space-y-2">
-                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300">
-                  Barcode (Optional)
-                </label>
-                <Input
-                  value={formData.barcode}
-                  onChange={(e) => setFormData(prev => ({ ...prev, barcode: e.target.value }))}
-                  placeholder="Enter barcode"
-                  size="lg"
-                  classNames={{
-                    input: "text-sm py-3 px-3",
-                    inputWrapper: "h-12 border-2 border-gray-200 hover:border-[#003366] focus-within:border-[#003366] rounded-xl shadow-sm hover:shadow-md transition-all duration-200 bg-white dark:bg-gray-800 dark:border-gray-700"
-                  }}
-                />
-              </div>
-            </div>
-
-            {/* Category Selection */}
-            <div className="space-y-2">
-              <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300">
-                Category *
-              </label>
-              <Select
-                placeholder="Select a category"
-                selectedKeys={formData.categoryId ? [formData.categoryId] : []}
-                onSelectionChange={(keys) => {
-                  const selectedKey = Array.from(keys)[0] as string;
-                  setFormData(prev => ({ ...prev, categoryId: selectedKey || '' }));
-                }}
-                size="lg"
-                isInvalid={!!errors.categoryId}
-                errorMessage={errors.categoryId}
-                isLoading={loadingCategories}
-                classNames={{
-                  trigger: "h-12 border-2 border-gray-200 hover:border-[#003366] focus-within:border-[#003366] rounded-xl shadow-sm hover:shadow-md transition-all duration-200 bg-white dark:bg-gray-800 dark:border-gray-700",
-                  value: "text-sm py-3 px-3"
-                }}
-              >
-                {categories.map((category) => (
-                  <SelectItem key={category.id} textValue={category.name}>
-                    {category.name}
-                  </SelectItem>
-                ))}
-              </Select>
-            </div>
-
-          </div>
+            </Tab>
+          </Tabs>
         </ModalBody>
 
         {/* Restoration Alert */}

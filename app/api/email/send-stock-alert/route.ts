@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
 
       if (alertType === 'low_stock') {
         alertProducts = processedProducts.filter(p => 
-          p.stock <= threshold && p.stock > 0
+          p.stock < threshold && p.stock > 0
         );
       } else if (alertType === 'out_of_stock') {
         alertProducts = processedProducts.filter(p => p.stock === 0);

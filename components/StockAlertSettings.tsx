@@ -358,7 +358,7 @@ export default function StockAlertSettings({ isOpen, onClose }: StockAlertSettin
                   }}
                 />
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                  Products with stock below this number will trigger low stock alerts.
+                  Products with stock below this number will trigger low stock alerts. Stock equal to the threshold will not trigger alerts.
                 </p>
                 
                 {/* Preview */}
@@ -370,7 +370,7 @@ export default function StockAlertSettings({ isOpen, onClose }: StockAlertSettin
                   ) : (
                     <p className="text-xs text-blue-700 dark:text-blue-300">
                       <strong>Preview:</strong> With threshold of {tempThreshold}, you would have{' '}
-                      <strong>{previewData.lowStockCount} low stock alerts</strong> and{' '}
+                      <strong>{previewData.lowStockCount} low stock alerts</strong> (stock &lt; {tempThreshold}) and{' '}
                       <strong>{previewData.outOfStockCount} out of stock alerts</strong>
                       {' '}(out of {previewData.totalProducts} total products)
                     </p>

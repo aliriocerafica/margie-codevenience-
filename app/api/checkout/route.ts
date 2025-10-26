@@ -10,7 +10,7 @@ const DEFAULT_THRESHOLD = 10;
 
 function computeStatus(stock: number, threshold: number) {
   if (stock <= 0) return "out_of_stock";
-  if (stock <= threshold) return "low_stock";
+  if (stock < threshold) return "low_stock";
   return "available";
 }
 

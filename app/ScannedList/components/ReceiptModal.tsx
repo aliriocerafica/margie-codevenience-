@@ -170,13 +170,13 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ isOpen, onClose, rec
                                     className="h-12 mx-auto mb-2 object-contain"
                                 />
                             )}
-                            <h1 className="text-sm font-bold">{receiptData.storeName}</h1>
-                            <div className="text-xs font-bold text-gray-600 mb-1">Official Receipt</div>
+                            <h1 className="text-sm font-bold text-gray-900">{receiptData.storeName}</h1>
+                            <div className="text-xs font-bold text-gray-800 mb-1">Official Receipt</div>
                             {receiptData.storePhone && (
-                                <div className="text-xs text-gray-500">{receiptData.storePhone}</div>
+                                <div className="text-xs text-gray-700">{receiptData.storePhone}</div>
                             )}
                             {receiptData.storeAddressLines?.length && (
-                                <div className="text-xs text-gray-500">
+                                <div className="text-xs text-gray-700">
                                     {receiptData.storeAddressLines.join(', ')}
                                 </div>
                             )}
@@ -185,7 +185,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ isOpen, onClose, rec
                         <hr className="border-dashed border-gray-300 my-2" />
 
                         <div className="text-xs">
-                            <div className="grid grid-cols-4 gap-2 font-semibold border-b border-dashed border-gray-300 pb-1 mb-2">
+                            <div className="grid grid-cols-4 gap-2 font-semibold border-b border-dashed border-gray-300 pb-1 mb-2 text-gray-900">
                                 <div>Item</div>
                                 <div className="text-right">Qty</div>
                                 <div className="text-right">Price</div>
@@ -196,11 +196,11 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ isOpen, onClose, rec
                                 const unit = typeof item.price === "string" ? parseFloat(item.price) : item.price;
                                 const lineTotal = unit * item.quantity;
                                 return (
-                                    <div key={idx} className="grid grid-cols-4 gap-2 py-1">
+                                    <div key={idx} className="grid grid-cols-4 gap-2 py-1 text-gray-900">
                                         <div>
                                             <div className="font-semibold">{item.name}</div>
                                             {item.barcode && (
-                                                <div className="text-gray-500 text-xs">{item.barcode}</div>
+                                                <div className="text-gray-600 text-xs">{item.barcode}</div>
                                             )}
                                         </div>
                                         <div className="text-right">{item.quantity}</div>
@@ -213,7 +213,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ isOpen, onClose, rec
 
                         <hr className="border-dashed border-gray-300 my-2" />
 
-                        <div className="text-xs space-y-1">
+                        <div className="text-xs space-y-1 text-gray-900">
                             <div className="flex justify-between">
                                 <span>Subtotal</span>
                                 <span>{formatCurrency(receiptData.subtotal)}</span>
@@ -233,7 +233,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ isOpen, onClose, rec
 
                         <hr className="border-dashed border-gray-300 my-2" />
 
-                        <div className="text-center text-xs text-gray-500">
+                        <div className="text-center text-xs text-gray-700">
                             <div># ITEMS SOLD {itemsSold}</div>
                             <div>
                                 {receiptData.timestamp 
@@ -241,7 +241,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ isOpen, onClose, rec
                                     : new Date().toLocaleDateString() + ' ' + new Date().toLocaleTimeString()
                                 }
                             </div>
-                            <div className="font-semibold mt-1">Thank you for your purchase!</div>
+                            <div className="font-semibold mt-1 text-gray-900">Thank you for your purchase!</div>
                         </div>
                     </div>
                 </ModalBody>

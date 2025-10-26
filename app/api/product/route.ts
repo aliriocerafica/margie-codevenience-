@@ -26,7 +26,7 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { name, price, stock, status, imageUrl, barcode, categoryId } = body;
+    const { name, brand, product, quantity, size, price, unitCost, stock, status, imageUrl, barcode, categoryId } = body;
 
     if (!name || !price || !stock || !categoryId) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -79,7 +79,12 @@ export async function POST(req: Request) {
     const created = await prisma.product.create({
       data: { 
         name, 
+        brand,
+        product,
+        quantity,
+        size,
         price, 
+        unitCost,
         stock, 
         status, 
         imageUrl, 

@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
 
     // Separate low stock and out of stock products
     const lowStockProducts = processedProducts.filter(p => 
-      p.stock <= thresholdNum && p.stock > 0
+      p.stock < thresholdNum && p.stock > 0
     );
     
     const outOfStockProducts = processedProducts.filter(p => 

@@ -443,47 +443,43 @@ const ScanQR = () => {
     }, 5000);
   };
 
-  const handleAddToInventory = () => {
+  const handleAddToInventory = async () => {
     if (scannedProduct) {
-      // Add to ScannedList via localStorage
-      const existingItems = JSON.parse(localStorage.getItem('scannedItems') || '[]');
-      const existingItem = existingItems.find((item: any) => item.id === scannedProduct.id);
-      
-      let newItems;
-      if (existingItem) {
-        // Increment quantity if item already exists
-        newItems = existingItems.map((item: any) => 
-          item.id === scannedProduct.id 
-            ? { ...item, quantity: item.quantity + 1 }
-            : item
-        );
-      } else {
-        // Add new item
-        newItems = [
-          ...existingItems,
-          {
-            id: scannedProduct.id,
-            name: scannedProduct.name,
-            barcode: scannedProduct.barcode || scannedProduct.id,
-            price: scannedProduct.price,
-            quantity: 1,
-            status: scannedProduct.stock > 0 ? 'available' : 'out_of_stock'
-          }
-        ];
+      try {
+        // Add to cart via API
+        const response = await fetch('/api/cart', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            productId: scannedProduct.id,
+            quantity: 1
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to add product to cart');
+        }
+
+        // Close modal and reset scan
+        setIsProductModalOpen(false);
+        resetScan();
+        
+        // Show success notification
+        showNotification({
+          title: "Product Added to Checkout",
+          description: `"${scannedProduct.name}" has been added to your checkout list.`,
+          type: "success"
+        });
+      } catch (error) {
+        console.error('Error adding product to cart:', error);
+        showNotification({
+          title: "Error",
+          description: "Failed to add product to checkout. Please try again.",
+          type: "error"
+        });
       }
-      
-      localStorage.setItem('scannedItems', JSON.stringify(newItems));
-      
-      // Close modal and reset scan
-      setIsProductModalOpen(false);
-      resetScan();
-      
-      // Show success notification
-      showNotification({
-        title: "Product Added to Checkout",
-        description: `"${scannedProduct.name}" has been added to your checkout list.`,
-        type: "success"
-      });
     }
   };
 

@@ -6,7 +6,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   try {
     const { id } = await params;
     const body = await request.json();
-    const { name, price, stock, barcode, categoryId, imageUrl, oldImageUrl } = body;
+    const { name, brand, product, quantity, size, price, unitCost, stock, barcode, categoryId, imageUrl, oldImageUrl } = body;
 
     if (!name || !price || !stock || !categoryId) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -41,7 +41,18 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     }
 
     // Prepare update data
-    const updateData: any = { name, price, stock, categoryId, status };
+    const updateData: any = { 
+      name, 
+      brand,
+      product,
+      quantity,
+      size,
+      price, 
+      unitCost,
+      stock, 
+      categoryId, 
+      status 
+    };
     if (barcode !== null) updateData.barcode = barcode && barcode.trim() !== "" ? barcode.trim() : null;
     if (imageUrl !== null) updateData.imageUrl = imageUrl;
 

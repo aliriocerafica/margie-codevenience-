@@ -6,48 +6,90 @@ import { ScanPanel } from "./sections/ScanPanel";
 import { ReceiptPanel } from "./sections/ReceiptPanel";
 import { SAMPLE_PRODUCTS } from "@/lib/constants";
 import type { ScannedProduct } from "./components/ScannedProductsTable";
+import useSWR from "swr";
+
+const fetcher = (url: string) => fetch(url).then((res) => {
+    if (!res.ok) throw new Error("Failed to fetch");
+    return res.json();
+});
 
 export default function POSPage() {
     const [query, setQuery] = useState("");
     const [items, setItems] = useState<ScannedProduct[]>([]);
+    const [currentQuantities, setCurrentQuantities] = useState<Map<string, number>>(new Map());
 
-    // Load items from localStorage on mount
+    // Load items from database via API
+    const { data: cartItems, error, isLoading, mutate } = useSWR('/api/cart', fetcher);
+
+    // Transform cart items to ScannedProduct format
     useEffect(() => {
-        const savedItems = localStorage.getItem('scannedItems');
-        if (savedItems) {
-            try {
-                const parsed = JSON.parse(savedItems);
-                if (Array.isArray(parsed)) {
-                    setItems(parsed);
-                }
-            } catch (e) {
-                console.error('Failed to parse saved items:', e);
-            }
+        if (cartItems && Array.isArray(cartItems)) {
+            const transformedItems: ScannedProduct[] = cartItems.map((item: any) => {
+                const baseQuantity = item.quantity;
+                const currentQuantity = currentQuantities.get(item.product.id);
+                const finalQuantity = currentQuantity !== undefined ? currentQuantity : baseQuantity;
+                
+                return {
+                    id: item.product.id,
+                    name: item.product.name,
+                    barcode: item.product.barcode || item.product.id,
+                    price: parseFloat(item.product.price),
+                    quantity: finalQuantity,
+                    status: item.product.status,
+                    stock: parseInt(item.product.stock) || 0,
+                    category: item.product.category?.name || 'Unknown'
+                };
+            });
+            setItems(transformedItems);
         }
-    }, []);
+    }, [cartItems, currentQuantities]);
 
-    const addOrIncrementBy = (p: { id: string; name: string; barcode: string; price: string | number; status?: string; stock?: number }) => {
-        setItems(prev => {
-            const existing = prev.find(i => i.id === String(p.id));
-            const newItems = existing
-                ? prev.map(i => i.id === existing.id ? { ...i, quantity: i.quantity + 1 } : i)
-                : [
-                    ...prev,
-                    {
-                        id: String(p.id),
-                        name: p.name,
-                        barcode: p.barcode,
-                        price: p.price,
-                        quantity: 1,
-                        status: (p.status ?? "available") as any,
-                        stock: p.stock,
+    // Initialize current quantities when cart items change
+    useEffect(() => {
+        if (cartItems && Array.isArray(cartItems)) {
+            setCurrentQuantities(prev => {
+                const newMap = new Map(prev);
+                cartItems.forEach((item: any) => {
+                    // Always update with the latest server quantity for new items
+                    // or if the server quantity is different from our cached quantity
+                    const serverQuantity = item.quantity;
+                    const cachedQuantity = newMap.get(item.product.id);
+                    
+                    if (cachedQuantity === undefined || cachedQuantity !== serverQuantity) {
+                        newMap.set(item.product.id, serverQuantity);
                     }
-                ];
-            
-            // Save to localStorage
-            localStorage.setItem('scannedItems', JSON.stringify(newItems));
-            return newItems;
-        });
+                });
+                return newMap;
+            });
+        }
+    }, [cartItems]);
+
+    const addOrIncrementBy = async (p: { id: string; name: string; barcode: string; price: string | number; status?: string; stock?: number }) => {
+        try {
+            const response = await fetch('/api/cart', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    productId: p.id,
+                    quantity: 1
+                })
+            });
+
+            if (response.ok) {
+                // Update current quantities immediately for the added item
+                setCurrentQuantities(prev => {
+                    const newMap = new Map(prev);
+                    const currentQty = newMap.get(p.id) || 0;
+                    newMap.set(p.id, currentQty + 1);
+                    return newMap;
+                });
+                mutate(); // Refresh cart data
+            }
+        } catch (error) {
+            console.error('Error adding product to cart:', error);
+        }
     };
 
     const handleScan = () => {
@@ -75,27 +117,32 @@ export default function POSPage() {
         setQuery("");
     };
 
-    const handleSelect = (p: { id: string; name: string; barcode?: string; price: string | number; status?: string }) => {
-        setItems(prev => {
-            const existing = prev.find(i => i.id === String(p.id));
-            const newItems = existing
-                ? prev.map(i => i.id === existing.id ? { ...i, quantity: i.quantity + 1 } : i)
-                : [
-                    ...prev,
-                    {
-                        id: String(p.id),
-                        name: p.name,
-                        barcode: p.barcode ?? String(p.id).padStart(12, "0"),
-                        price: p.price,
-                        quantity: 1,
-                        status: (p.status ?? "available") as any,
-                    }
-                ];
-            
-            // Save to localStorage
-            localStorage.setItem('scannedItems', JSON.stringify(newItems));
-            return newItems;
-        });
+    const handleSelect = async (p: { id: string; name: string; barcode?: string; price: string | number; status?: string }) => {
+        try {
+            const response = await fetch('/api/cart', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    productId: p.id,
+                    quantity: 1
+                })
+            });
+
+            if (response.ok) {
+                // Update current quantities immediately for the added item
+                setCurrentQuantities(prev => {
+                    const newMap = new Map(prev);
+                    const currentQty = newMap.get(p.id) || 0;
+                    newMap.set(p.id, currentQty + 1);
+                    return newMap;
+                });
+                mutate(); // Refresh cart data
+            }
+        } catch (error) {
+            console.error('Error adding product to cart:', error);
+        }
         setQuery("");
     };
 
@@ -151,42 +198,194 @@ export default function POSPage() {
         setQuery("");
     };
 
-    const handleClear = () => {
-        setItems([]);
-        localStorage.removeItem('scannedItems');
-        localStorage.removeItem('recentScans');
+    const handleClear = async () => {
+        try {
+            const response = await fetch('/api/cart', {
+                method: 'DELETE'
+            });
+
+            if (response.ok) {
+                mutate(); // Refresh cart data
+            }
+        } catch (error) {
+            console.error('Error clearing cart:', error);
+        }
     };
     
-    const handleIncrease = (id: string) => {
-        setItems(prev => {
-            const newItems = prev.map(i => i.id === id ? { ...i, quantity: i.quantity + 1 } : i);
-            localStorage.setItem('scannedItems', JSON.stringify(newItems));
-            return newItems;
+    const handleIncrease = async (id: string) => {
+        // Update current quantity immediately
+        setCurrentQuantities(prev => {
+            const newMap = new Map(prev);
+            const currentQty = newMap.get(id) || 0;
+            newMap.set(id, currentQty + 1);
+            return newMap;
         });
+
+        try {
+            // Find the cart item ID for this product
+            const cartItem = cartItems?.find((item: any) => item.product.id === id);
+            if (cartItem) {
+                const currentQty = currentQuantities.get(id) || cartItem.quantity;
+                const newQuantity = currentQty + 1;
+                
+                const response = await fetch(`/api/cart/${cartItem.id}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        quantity: newQuantity
+                    })
+                });
+
+                if (!response.ok) {
+                    // Revert on error
+                    setCurrentQuantities(prev => {
+                        const newMap = new Map(prev);
+                        const currentQty = newMap.get(id) || 0;
+                        newMap.set(id, Math.max(0, currentQty - 1));
+                        return newMap;
+                    });
+                    console.error('Failed to update quantity');
+                } else {
+                    // Sync with server data
+                    mutate();
+                }
+            }
+        } catch (error) {
+            // Revert on error
+            setCurrentQuantities(prev => {
+                const newMap = new Map(prev);
+                const currentQty = newMap.get(id) || 0;
+                newMap.set(id, Math.max(0, currentQty - 1));
+                return newMap;
+            });
+            console.error('Error increasing quantity:', error);
+        }
     };
     
-    const handleDecrease = (id: string) => {
-        setItems(prev => {
-            const newItems = prev.map(i => i.id === id ? { ...i, quantity: Math.max(1, i.quantity - 1) } : i);
-            localStorage.setItem('scannedItems', JSON.stringify(newItems));
-            return newItems;
+    const handleDecrease = async (id: string) => {
+        // Update current quantity immediately
+        setCurrentQuantities(prev => {
+            const newMap = new Map(prev);
+            const currentQty = newMap.get(id) || 0;
+            newMap.set(id, Math.max(1, currentQty - 1));
+            return newMap;
         });
+
+        try {
+            // Find the cart item ID for this product
+            const cartItem = cartItems?.find((item: any) => item.product.id === id);
+            if (cartItem) {
+                const currentQty = currentQuantities.get(id) || cartItem.quantity;
+                const newQuantity = Math.max(1, currentQty - 1);
+                
+                const response = await fetch(`/api/cart/${cartItem.id}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        quantity: newQuantity
+                    })
+                });
+
+                if (!response.ok) {
+                    // Revert on error
+                    setCurrentQuantities(prev => {
+                        const newMap = new Map(prev);
+                        const currentQty = newMap.get(id) || 0;
+                        newMap.set(id, currentQty + 1);
+                        return newMap;
+                    });
+                    console.error('Failed to update quantity');
+                } else {
+                    // Sync with server data
+                    mutate();
+                }
+            }
+        } catch (error) {
+            // Revert on error
+            setCurrentQuantities(prev => {
+                const newMap = new Map(prev);
+                const currentQty = newMap.get(id) || 0;
+                newMap.set(id, currentQty + 1);
+                return newMap;
+            });
+            console.error('Error decreasing quantity:', error);
+        }
     };
     
-    const handleRemove = (id: string) => {
-        setItems(prev => {
-            const newItems = prev.filter(i => i.id !== id);
-            localStorage.setItem('scannedItems', JSON.stringify(newItems));
-            return newItems;
-        });
+    const handleRemove = async (id: string) => {
+        try {
+            // Find the cart item ID for this product
+            const cartItem = cartItems?.find((item: any) => item.product.id === id);
+            if (cartItem) {
+                const response = await fetch(`/api/cart/${cartItem.id}`, {
+                    method: 'DELETE'
+                });
+
+                if (response.ok) {
+                    mutate(); // Refresh cart data
+                }
+            }
+        } catch (error) {
+            console.error('Error removing item:', error);
+        }
     };
 
-    const handleQuantityChange = (id: string, quantity: number) => {
-        setItems(prev => {
-            const newItems = prev.map(i => i.id === id ? { ...i, quantity: Math.max(1, quantity) } : i);
-            localStorage.setItem('scannedItems', JSON.stringify(newItems));
-            return newItems;
+    const handleQuantityChange = async (id: string, quantity: number) => {
+        const newQuantity = Math.max(1, quantity);
+        
+        // Update current quantity immediately
+        setCurrentQuantities(prev => {
+            const newMap = new Map(prev);
+            newMap.set(id, newQuantity);
+            return newMap;
         });
+
+        try {
+            // Find the cart item ID for this product
+            const cartItem = cartItems?.find((item: any) => item.product.id === id);
+            if (cartItem) {
+                const response = await fetch(`/api/cart/${cartItem.id}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        quantity: newQuantity
+                    })
+                });
+
+                if (!response.ok) {
+                    // Revert on error - get original quantity from cartItems
+                    const originalItem = cartItems?.find((item: any) => item.product.id === id);
+                    if (originalItem) {
+                        setCurrentQuantities(prev => {
+                            const newMap = new Map(prev);
+                            newMap.set(id, originalItem.quantity);
+                            return newMap;
+                        });
+                    }
+                    console.error('Failed to update quantity');
+                } else {
+                    // Sync with server data
+                    mutate();
+                }
+            }
+        } catch (error) {
+            // Revert on error
+            const originalItem = cartItems?.find((item: any) => item.product.id === id);
+            if (originalItem) {
+                setCurrentQuantities(prev => {
+                    const newMap = new Map(prev);
+                    newMap.set(id, originalItem.quantity);
+                    return newMap;
+                });
+            }
+            console.error('Error updating quantity:', error);
+        }
     };
 
     return (
