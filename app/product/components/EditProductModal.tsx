@@ -433,7 +433,7 @@ export default function EditProductModal({ isOpen, onClose, product, onProductUp
                   </div>
 
                   <div className="space-y-2">
-                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300">Barcode (Optional)</label>
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300">Barcode</label>
                     <Input
                       value={formData.barcode}
                       onChange={(e) => setFormData(prev => ({ ...prev, barcode: e.target.value }))}

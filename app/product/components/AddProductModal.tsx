@@ -810,7 +810,7 @@ export default function AddProductModal({ isOpen, onClose, onProductAdded, initi
 
                   <div className="space-y-2">
                     <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300">
-                      Barcode (Optional)
+                      Barcode
                     </label>
                     <Input
                       value={formData.barcode}
