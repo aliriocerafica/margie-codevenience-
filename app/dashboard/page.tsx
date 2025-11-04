@@ -9,6 +9,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { DashboardStats } from "./widgets/DashboardStats";
 import { DashboardQuickActions } from "./widgets/DashboardQuickActions";
 import { DashboardLowStockProducts } from "./widgets/DashboardLowStockProducts";
+import { DashboardRecentProducts } from "./widgets/DashboardRecentProducts";
 import { 
   DASHBOARD_QUICK_ACTIONS
 } from "@/lib/constants";
@@ -30,6 +31,9 @@ export default function DashboardPage() {
 	const { lowStockThreshold } = useNotifications();
 
 	const { data: statsData, error: statsError, isLoading: statsLoading } = useSWR<{ products: number; categories: number; users: number; todaySales: number; salesGrowth: number }>("/api/dashboard", fetcher);
+	
+	// Fetch recent products
+	const { data: recentProductsData, error: productsError, isLoading: productsLoading } = useSWR<any[]>("/api/product", fetcher);
 	
 	// Fetch low stock products using the stock-alerts API
 	const { data: stockAlertsData, error: stockAlertsError, isLoading: stockAlertsLoading } = useSWR<any>(
@@ -59,6 +63,19 @@ export default function DashboardPage() {
 		];
 	}, [statsData]);
 
+	// Map products to widget shape (limit to 5 most recent)
+	const recentProducts: ProductSummaryItem[] = React.useMemo(() => {
+		if (!recentProductsData) return [];
+		return recentProductsData.slice(0, 5).map((p: any) => ({
+			id: p.id,
+			name: p.name,
+			category: p.category?.name ?? "Unknown",
+			price: p.price,
+			stock: parseInt(p.stock ?? "0"),
+			status: p.status
+		}));
+	}, [recentProductsData]);
+
 	// Map low stock products to widget shape
 	const lowStockProducts: ProductSummaryItem[] = React.useMemo(() => {
 		if (!stockAlertsData?.alerts?.lowStock) return [];
@@ -86,10 +103,21 @@ export default function DashboardPage() {
 			<DashboardStats stats={stats} />
 
 			{/* Recent Activity */}
-			<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-				{stockAlertsLoading && <div className="text-sm text-gray-500">Loading low stock products...</div>}
-				{stockAlertsError && <div className="text-sm text-red-600">Failed to load low stock products.</div>}
-				<DashboardLowStockProducts products={lowStockProducts} />
+			<div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+				{stockAlertsLoading ? (
+					<div className="text-sm text-gray-500 p-4">Loading low stock products...</div>
+				) : stockAlertsError ? (
+					<div className="text-sm text-red-600 p-4">Failed to load low stock products.</div>
+				) : (
+					<DashboardLowStockProducts products={lowStockProducts} />
+				)}
+				{productsLoading ? (
+					<div className="text-sm text-gray-500 p-4">Loading products...</div>
+				) : productsError ? (
+					<div className="text-sm text-red-600 p-4">Failed to load recent products.</div>
+				) : (
+					<DashboardRecentProducts products={recentProducts} />
+				)}
 				<DashboardQuickActions actions={DASHBOARD_QUICK_ACTIONS} />
 			</div>
 		</div>
