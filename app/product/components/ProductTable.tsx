@@ -199,6 +199,7 @@ export const ProductTable: React.FC<ProductTableProps> = ({ data, isLoading, err
           data={[]}
           isLoading={true}
           defaultSort={{ key: "name", direction: "asc" }}
+          filterLabel="Filter Product"
         />
       </div>
     );
@@ -216,6 +217,7 @@ export const ProductTable: React.FC<ProductTableProps> = ({ data, isLoading, err
           data={[]}
           error={error}
           defaultSort={{ key: "name", direction: "asc" }}
+          filterLabel="Filter Product"
         />
       </div>
     );
@@ -231,6 +233,7 @@ export const ProductTable: React.FC<ProductTableProps> = ({ data, isLoading, err
         columns={columns}
         data={data || []}
         defaultSort={{ key: "name", direction: "asc" }}
+        filterLabel="Filter Product"
       />
     </div>
   );

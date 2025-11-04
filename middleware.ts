@@ -1,13 +1,20 @@
 import { auth } from "@/auth";
 
 export default auth((req) => {
-  const privateRoutes = ["/category", "/dashboard", "/product", "/users", "/scanqr", /* "/analytics", */ "/reports"];
+  const privateRoutes = [
+    "/category",
+    "/dashboard",
+    "/product",
+    "/users",
+    "/scanqr",
+    /* "/analytics", */ "/reports",
+  ];
 
   const isLoggedIn = !!req.auth;
   const user = req.auth?.user;
 
-  const url = "https://margie-codevenience.vercel.app";
-  // const url = "http://localhost:3000";
+  // const url = "https://margie-codevenience.vercel.app";
+  const url = "http://localhost:3000";
   const { pathname } = req.nextUrl;
 
   const isRootRoute = pathname === "/";
@@ -34,13 +41,14 @@ export default auth((req) => {
     }
   }
 
-// Protect dashboard routes (Admins + Staff allowed)
-if (isDashboardRoute) {
-  const role = user?.role ?? ""; // fallback to empty string if undefined/null
-  if (!isLoggedIn || !["Admin", "Staff"].includes(role)) {
-    return Response.redirect(`${url}/signup`);
+  // Protect dashboard routes (Admins + Staff allowed)
+  if (isDashboardRoute) {
+    const role = user?.role ?? ""; // fallback to empty string if undefined/null
+
+    if (!isLoggedIn || !["Admin", "Staff"].includes(role)) {
+      return Response.redirect(`${url}/signup`);
+    }
   }
-}
 });
 
 export const config = {

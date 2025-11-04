@@ -110,7 +110,7 @@ export default function Sidebar({ children }: SidebarProps) {
         //     hasNotification: false,
         // },
         {
-            name: "Sales Reports",
+            name: "Reports",
             href: "/reports",
             icon: TrendingUp,
             hasNotification: false,

@@ -62,7 +62,7 @@ export const DASHBOARD_QUICK_ACTIONS: QuickActionItem[] = [
   // },
   { 
     id: "sales-report", 
-    label: "Sales Reports", 
+    label: "Reports", 
     color: "warning", 
     variant: "flat", 
     icon: TrendingUp,

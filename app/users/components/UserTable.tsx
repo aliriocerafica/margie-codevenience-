@@ -153,6 +153,7 @@ export const UserTable: React.FC<UserTableProps> = ({
           isLoading={true}
           label="User List"
           statusOptions={USER_STATUS_OPTIONS}
+          filterLabel="Filter Role"
         />
       </div>
     );
@@ -169,6 +170,7 @@ export const UserTable: React.FC<UserTableProps> = ({
           filter={true}
           label="User List"
           statusOptions={USER_STATUS_OPTIONS}
+          filterLabel="Filter Role"
         />
       </div>
     );
@@ -183,6 +185,7 @@ export const UserTable: React.FC<UserTableProps> = ({
         filter={true}
         label="User List"
         statusOptions={USER_STATUS_OPTIONS}
+        filterLabel="Filter Role"
       />
     </div>
   );
