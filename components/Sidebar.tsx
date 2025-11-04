@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
     Navbar,
     NavbarBrand,
@@ -57,6 +57,7 @@ export default function Sidebar({ children }: SidebarProps) {
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [localSearchQuery, setLocalSearchQuery] = useState("");
+    const [isMounted, setIsMounted] = useState(false);
     const pathname = usePathname();
     const router = useRouter();
     const { openSearchModal } = useSearch();
@@ -65,6 +66,11 @@ export default function Sidebar({ children }: SidebarProps) {
 
     // Enable keyboard shortcuts
     useKeyboardShortcuts();
+
+    // Set mounted state after component mounts to prevent hydration mismatch
+    useEffect(() => {
+        setIsMounted(true);
+    }, []);
 
     const menuItems = [
         {
@@ -158,13 +164,14 @@ export default function Sidebar({ children }: SidebarProps) {
     };
 
     // Role-based filtering: hide Products, Categories, Team, and Reports for Staff
-    // While session is loading, only show safe links (Dashboard, Scan, Checkout) that both Admin and Staff can access
+    // During SSR or before mount, show safe links to prevent hydration mismatch
+    // After mount, apply role-based filtering
     const userRole = (session as any)?.user?.role;
-    const baseMenuItems = (status === 'loading' || !session)
+    const baseMenuItems = !isMounted
         ? menuItems.filter((item) => ["Dashboard", "Scan Items", "Checkout"].includes(item.name))
         : userRole === 'Staff'
         ? menuItems.filter((item) => !["Products", "Categories", "Team", "Reports"].includes(item.name))
-        : menuItems;
+        : menuItems; // Show all links for Admin users or when session is loading
 
     // Filter menu items based on local search query (for sidebar filtering)
     const filteredMenuItems = baseMenuItems.filter(item =>
