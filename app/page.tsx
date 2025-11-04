@@ -75,33 +75,72 @@ export default function SignupPage() {
 
         setLoading(true);
         setMessage("");
+        setEmailError("");
+        setPasswordError("");
 
-        const result = await signIn("credentials", {
-            redirect: true,
-            callbackUrl: "/dashboard",
-            email,
-            password,
-        });
+        try {
+            // First, check the API directly to get specific error messages
+            const response = await fetch('/api/auth/sign-in', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ email, password }),
+            });
 
-        // If redirect is handled by Auth.js, this code may not run.
-        setLoading(false);
+            const data = await response.json();
 
-        if ((result as any)?.error) {
-            setMessage("Invalid credentials");
-            return;
+            if (!response.ok) {
+                // Display specific error message from API
+                const errorMessage = data.error || 'Invalid credentials';
+                setMessage(errorMessage);
+                
+                // Set field-specific errors
+                if (errorMessage.includes('Email not found')) {
+                    setEmailError('Email not found. Please check your email address.');
+                } else if (errorMessage.includes('Incorrect password')) {
+                    setPasswordError('Incorrect password. Please check your password.');
+                }
+                
+                setLoading(false);
+                return;
+            }
+
+            // If API call is successful, proceed with next-auth sign in
+            const result = await signIn("credentials", {
+                redirect: false,
+                callbackUrl: "/dashboard",
+                email,
+                password,
+            });
+
+            // Check if signIn returned an error
+            if ((result as any)?.error) {
+                setMessage((result as any).error || 'An error occurred during sign in.');
+                setLoading(false);
+                return;
+            }
+
+            // Store remember me preference in localStorage
+            if (rememberMe) {
+                localStorage.setItem('rememberMe', 'true');
+                localStorage.setItem('rememberedEmail', email);
+            } else {
+                localStorage.removeItem('rememberMe');
+                localStorage.removeItem('rememberedEmail');
+            }
+
+            // If successful, redirect manually
+            if ((result as any)?.ok) {
+                router.push('/dashboard');
+            } else {
+                setLoading(false);
+            }
+        } catch (error) {
+            console.error('Login error:', error);
+            setMessage('An error occurred during login. Please try again.');
+            setLoading(false);
         }
-
-        // Store remember me preference in localStorage
-        if (rememberMe) {
-            localStorage.setItem('rememberMe', 'true');
-            localStorage.setItem('rememberedEmail', email);
-        } else {
-            localStorage.removeItem('rememberMe');
-            localStorage.removeItem('rememberedEmail');
-        }
-
-        // Redirect handled by Auth.js
-        return;
     };
 
 

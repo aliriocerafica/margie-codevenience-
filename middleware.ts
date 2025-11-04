@@ -7,7 +7,7 @@ export default auth((req) => {
     "/product",
     "/users",
     "/scanqr",
-    /* "/analytics", */ "/reports",
+    /* "/analytics", */
   ];
 
   const isLoggedIn = !!req.auth;
@@ -22,6 +22,7 @@ export default auth((req) => {
   const isAuthRoute = pathname.includes("/account/");
   const isPrivateRoute = privateRoutes.includes(pathname);
   const isAdminRoute = pathname.includes("/admin");
+  const isReportsRoute = pathname.includes("/reports");
   const isDashboardRoute = pathname.includes("/dashboard");
 
   // 🚫 Prevent logged-in users from accessing root, signup, and auth routes
@@ -36,6 +37,13 @@ export default auth((req) => {
 
   // Protect admin routes (only Admins allowed)
   if (isAdminRoute) {
+    if (!isLoggedIn || user?.role !== "Admin") {
+      return Response.redirect(`${url}/`);
+    }
+  }
+
+  // Protect reports routes (only Admins allowed)
+  if (isReportsRoute) {
     if (!isLoggedIn || user?.role !== "Admin") {
       return Response.redirect(`${url}/`);
     }

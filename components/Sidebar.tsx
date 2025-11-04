@@ -157,9 +157,9 @@ export default function Sidebar({ children }: SidebarProps) {
         openSearchModal();
     };
 
-    // Role-based filtering: hide Products, Categories, and Team for Staff
+    // Role-based filtering: hide Products, Categories, Team, and Reports for Staff
     const baseMenuItems = ((session as any)?.user?.role === 'Staff' || status === 'loading')
-        ? menuItems.filter((item) => !["Products", "Categories", "Team"].includes(item.name))
+        ? menuItems.filter((item) => !["Products", "Categories", "Team", "Reports"].includes(item.name))
         : menuItems;
 
     // Filter menu items based on local search query (for sidebar filtering)
