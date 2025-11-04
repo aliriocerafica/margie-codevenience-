@@ -158,7 +158,11 @@ export default function Sidebar({ children }: SidebarProps) {
     };
 
     // Role-based filtering: hide Products, Categories, Team, and Reports for Staff
-    const baseMenuItems = ((session as any)?.user?.role === 'Staff' || status === 'loading')
+    // While session is loading, only show safe links (Dashboard, Scan, Checkout) that both Admin and Staff can access
+    const userRole = (session as any)?.user?.role;
+    const baseMenuItems = (status === 'loading' || !session)
+        ? menuItems.filter((item) => ["Dashboard", "Scan Items", "Checkout"].includes(item.name))
+        : userRole === 'Staff'
         ? menuItems.filter((item) => !["Products", "Categories", "Team", "Reports"].includes(item.name))
         : menuItems;
 

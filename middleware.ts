@@ -7,7 +7,7 @@ export default auth((req) => {
     "/product",
     "/users",
     "/scanqr",
-    /* "/analytics", */
+    /* "/analytics", */ "/reports",
   ];
 
   const isLoggedIn = !!req.auth;
