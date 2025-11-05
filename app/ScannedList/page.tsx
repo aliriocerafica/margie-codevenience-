@@ -8,7 +8,7 @@ import { SAMPLE_PRODUCTS } from "@/lib/constants";
 import type { ScannedProduct } from "./components/ScannedProductsTable";
 import useSWR from "swr";
 
-const fetcher = (url: string) => fetch(url).then((res) => {
+const fetcher = (url: string) => fetch(url, { cache: 'no-store' }).then((res) => {
     if (!res.ok) throw new Error("Failed to fetch");
     return res.json();
 });
@@ -19,7 +19,12 @@ export default function POSPage() {
     const [currentQuantities, setCurrentQuantities] = useState<Map<string, number>>(new Map());
 
     // Load items from database via API
-    const { data: cartItems, error, isLoading, mutate } = useSWR('/api/cart', fetcher);
+    const { data: cartItems, error, isLoading, mutate } = useSWR('/api/cart', fetcher, {
+        refreshInterval: 2000,
+        revalidateOnFocus: true,
+        revalidateOnReconnect: true,
+        dedupingInterval: 500,
+    });
 
     // Transform cart items to ScannedProduct format
     useEffect(() => {
