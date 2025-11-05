@@ -15,13 +15,14 @@ export default function SalesPerformanceCard() {
   const [exportFileType, setExportFileType] = useState<string>("xlsx");
   const [period, setPeriod] = useState<string>("7days");
   const [modalPeriod, setModalPeriod] = useState<string>("6months");
+  const [granularity, setGranularity] = useState<"daily" | "weekly" | "monthly">("daily");
 
   // Fetch data for card preview (7 days)
-  const { data: cardData, error: cardError } = useSWR(`/api/reports/sales-performance?period=${period}`, fetcher);
+  const { data: cardData, error: cardError } = useSWR(`/api/reports/sales-performance?period=${period}&granularity=${granularity}`, fetcher);
   
   // Fetch data for modal (6 months)
   const { data: modalData, error: modalError } = useSWR(
-    isModalOpen ? `/api/reports/sales-performance?period=${modalPeriod}` : null,
+    isModalOpen ? `/api/reports/sales-performance?period=${modalPeriod}&granularity=${granularity}` : null,
     fetcher
   );
 
@@ -93,6 +94,8 @@ export default function SalesPerformanceCard() {
     salesGrowth: 0,
     transactionsGrowth: 0,
   };
+
+  const rows = (modalData?.rows ?? []) as any[];
 
   const exportSalesPerformance = () => {
     const timestamp = new Date().toISOString().slice(0, 10);
@@ -348,7 +351,24 @@ export default function SalesPerformanceCard() {
               </div>
 
               <div className="bg-white dark:bg-gray-900 p-6 rounded-lg border border-gray-200 dark:border-gray-700">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Sales Trend</h3>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Sales Trend</h3>
+                  <div className="w-40">
+                    <Select
+                      size="sm"
+                      selectedKeys={[granularity]}
+                      onSelectionChange={(keys) => {
+                        const [k] = Array.from(keys) as ("daily"|"weekly"|"monthly")[];
+                        setGranularity(k);
+                      }}
+                      aria-label="Granularity"
+                    >
+                      <SelectItem key="daily">Daily</SelectItem>
+                      <SelectItem key="weekly">Weekly</SelectItem>
+                      <SelectItem key="monthly">Monthly</SelectItem>
+                    </Select>
+                  </div>
+                </div>
                 <div className="h-80">
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={extendedSalesData}>
@@ -362,6 +382,78 @@ export default function SalesPerformanceCard() {
                       <Line type="monotone" dataKey="sales" stroke="#3b82f6" strokeWidth={3} dot={{ r: 6 }} activeDot={{ r: 8 }} />
                     </LineChart>
                   </ResponsiveContainer>
+                </div>
+              </div>
+
+              <div className="bg-white dark:bg-gray-900 p-6 rounded-lg border border-gray-200 dark:border-gray-700">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Sales Report</h3>
+                <div className="overflow-x-auto">
+                  {granularity === 'daily' && (
+                    <table className="min-w-full text-sm">
+                      <thead>
+                        <tr className="text-left text-gray-600 dark:text-gray-400">
+                          <th className="py-2 pr-4">Date</th>
+                          <th className="py-2 pr-4">Sales</th>
+                          <th className="py-2 pr-4">Gross Profit</th>
+                          <th className="py-2 pr-4">Units Sold</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {rows.map((r, i) => (
+                          <tr key={i} className="border-t border-gray-200 dark:border-gray-800">
+                            <td className="py-2 pr-4">{r.date}</td>
+                            <td className="py-2 pr-4">₱{(r.sales ?? 0).toLocaleString()}</td>
+                            <td className="py-2 pr-4">₱{(r.grossProfit ?? 0).toLocaleString()}</td>
+                            <td className="py-2 pr-4">{r.unitsSold ?? 0}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                  {granularity === 'weekly' && (
+                    <table className="min-w-full text-sm">
+                      <thead>
+                        <tr className="text-left text-gray-600 dark:text-gray-400">
+                          <th className="py-2 pr-4">Week</th>
+                          <th className="py-2 pr-4">Total Sales</th>
+                          <th className="py-2 pr-4">Gross Profit</th>
+                          <th className="py-2 pr-4">% Change vs Last Week</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {rows.map((r, i) => (
+                          <tr key={i} className="border-t border-gray-200 dark:border-gray-800">
+                            <td className="py-2 pr-4">{r.week}</td>
+                            <td className="py-2 pr-4">₱{(r.totalSales ?? 0).toLocaleString()}</td>
+                            <td className="py-2 pr-4">₱{(r.grossProfit ?? 0).toLocaleString()}</td>
+                            <td className="py-2 pr-4">{(r.changeVsLastWeekPct ?? 0).toFixed(1)}%</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                  {granularity === 'monthly' && (
+                    <table className="min-w-full text-sm">
+                      <thead>
+                        <tr className="text-left text-gray-600 dark:text-gray-400">
+                          <th className="py-2 pr-4">Scope</th>
+                          <th className="py-2 pr-4">Total Sales</th>
+                          <th className="py-2 pr-4">Gross Profit</th>
+                          <th className="py-2 pr-4">Total Transactions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {rows.map((r, i) => (
+                          <tr key={i} className="border-t border-gray-200 dark:border-gray-800">
+                            <td className="py-2 pr-4">{r.scope}</td>
+                            <td className="py-2 pr-4">₱{(r.totalSales ?? 0).toLocaleString()}</td>
+                            <td className="py-2 pr-4">₱{(r.grossProfit ?? 0).toLocaleString()}</td>
+                            <td className="py-2 pr-4">{r.totalTransactions ?? 0}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
                 </div>
               </div>
 

@@ -5,6 +5,7 @@ export async function GET(req: NextRequest) {
   try {
     const searchParams = req.nextUrl.searchParams;
     const period = searchParams.get("period") || "6months"; // 7days, 30days, 6months
+    const granularity = (searchParams.get("granularity") || "daily") as "daily" | "weekly" | "monthly";
 
     // Calculate date range based on period
     const now = new Date();
@@ -125,6 +126,107 @@ export async function GET(req: NextRequest) {
       });
     }
 
+    // Build tabular rows based on requested granularity
+    const parseNumber = (v: any): number => {
+      const n = typeof v === 'number' ? v : parseFloat(String(v ?? '').replace(/[^0-9.\-]/g, ''));
+      return isNaN(n) ? 0 : n;
+    };
+
+    type RowDaily = { date: string; sales: number; grossProfit: number; unitsSold: number };
+    type RowWeekly = { week: string; totalSales: number; grossProfit: number; changeVsLastWeekPct: number };
+    type RowMonthly = { scope: string; totalSales: number; grossProfit: number; totalTransactions: number };
+
+    const startOfWeek = (d: Date) => {
+      const dt = new Date(d);
+      const day = dt.getDay(); // 0=Sun
+      const diff = (day === 0 ? -6 : 1) - day; // make Monday start
+      dt.setDate(dt.getDate() + diff);
+      dt.setHours(0,0,0,0);
+      return dt;
+    };
+    const endOfWeek = (d: Date) => {
+      const s = startOfWeek(d);
+      const e = new Date(s);
+      e.setDate(s.getDate() + 6);
+      e.setHours(23,59,59,999);
+      return e;
+    };
+    const monthScope = (d: Date) => d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+    // Precompute per-transaction gross profit using product.unitCost
+    const enriched = salesOnly.map(s => {
+      const cost = parseNumber(s.product?.unitCost);
+      const profitPerUnit = parseNumber(s.unitPrice) - cost;
+      const grossProfit = profitPerUnit * s.quantity;
+      return { ...s, grossProfit };
+    });
+    // Note: voids/returns are excluded from sales totals and profit; if needed, can subtract.
+
+    let rows: Array<RowDaily | RowWeekly | RowMonthly> = [];
+    if (granularity === 'daily') {
+      const map = new Map<string, { sales: number; profit: number; units: number }>();
+      enriched.forEach(s => {
+        const key = new Date(s.createdAt).toISOString().split('T')[0];
+        const prev = map.get(key) || { sales: 0, profit: 0, units: 0 };
+        prev.sales += s.totalAmount;
+        prev.profit += s.grossProfit;
+        prev.units += s.quantity;
+        map.set(key, prev);
+      });
+      rows = Array.from(map.entries()).sort(([a],[b]) => a.localeCompare(b)).map(([key, agg]) => ({
+        date: key,
+        sales: Math.round(agg.sales * 100) / 100,
+        grossProfit: Math.round(agg.profit * 100) / 100,
+        unitsSold: agg.units,
+      }));
+    } else if (granularity === 'weekly') {
+      // Group by week (Mon-Sun)
+      type Agg = { sales: number; profit: number; start: Date; end: Date };
+      const map = new Map<string, Agg>();
+      enriched.forEach(s => {
+        const d = new Date(s.createdAt);
+        const sWeek = startOfWeek(d);
+        const eWeek = endOfWeek(d);
+        const key = sWeek.toISOString().split('T')[0];
+        const prev = map.get(key) || { sales: 0, profit: 0, start: sWeek, end: eWeek };
+        prev.sales += s.totalAmount;
+        prev.profit += s.grossProfit;
+        map.set(key, prev);
+      });
+      const ordered = Array.from(map.entries()).sort((a,b) => a[0].localeCompare(b[0]));
+      rows = ordered.map(([_, agg], idx) => {
+        const label = `Week ${idx + 1} (${agg.start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${agg.end.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })})`;
+        const prev = idx > 0 ? ordered[idx - 1][1] : null;
+        const change = prev && prev.sales > 0 ? ((agg.sales - prev.sales) / prev.sales) * 100 : 0;
+        return {
+          week: label,
+          totalSales: Math.round(agg.sales * 100) / 100,
+          grossProfit: Math.round(agg.profit * 100) / 100,
+          changeVsLastWeekPct: Math.round(change * 10) / 10,
+        } as RowWeekly;
+      });
+    } else {
+      // monthly
+      type Agg = { sales: number; profit: number; tx: number; anyDate: Date };
+      const map = new Map<string, Agg>();
+      enriched.forEach(s => {
+        const d = new Date(s.createdAt);
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2,'0')}`;
+        const prev = map.get(key) || { sales: 0, profit: 0, tx: 0, anyDate: d };
+        prev.sales += s.totalAmount;
+        prev.profit += s.grossProfit;
+        prev.tx += 1;
+        prev.anyDate = d;
+        map.set(key, prev);
+      });
+      rows = Array.from(map.entries()).sort(([a],[b]) => a.localeCompare(b)).map(([_, agg]) => ({
+        scope: monthScope(agg.anyDate),
+        totalSales: Math.round(agg.sales * 100) / 100,
+        grossProfit: Math.round(agg.profit * 100) / 100,
+        totalTransactions: agg.tx,
+      }));
+    }
+
     // Calculate totals following proper business accounting
     // Gross Sales = Total sales before any voids/returns (business volume)
     const grossSales = salesWithRevenue.reduce((sum, sale) => sum + sale.revenue, 0);
@@ -237,6 +339,8 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       chartData,
+      granularity,
+      rows,
       summary: {
         // Core Financial Metrics (Business Standard)
         grossSales: Math.round(grossSales * 100) / 100,        // Total sales before returns
