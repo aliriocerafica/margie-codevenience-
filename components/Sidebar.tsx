@@ -167,11 +167,11 @@ export default function Sidebar({ children }: SidebarProps) {
     // During SSR or before mount, show safe links to prevent hydration mismatch
     // After mount, apply role-based filtering
     const userRole = (session as any)?.user?.role;
-    const baseMenuItems = !isMounted
+    const baseMenuItems = !isMounted || status === "loading"
         ? menuItems.filter((item) => ["Dashboard", "Scan Items", "Checkout"].includes(item.name))
         : userRole === 'Staff'
         ? menuItems.filter((item) => !["Products", "Categories", "Team", "Reports"].includes(item.name))
-        : menuItems; // Show all links for Admin users or when session is loading
+        : menuItems; // Show all links for Admin users or when session is authenticated
 
     // Filter menu items based on local search query (for sidebar filtering)
     const filteredMenuItems = baseMenuItems.filter(item =>

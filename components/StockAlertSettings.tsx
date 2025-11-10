@@ -9,10 +9,10 @@ import {
   ModalFooter,
   Button,
   Input,
-  Switch,
   Chip,
   Select,
   SelectItem,
+  Switch,
 } from '@heroui/react';
 import { 
   Settings, 
@@ -262,7 +262,7 @@ export default function StockAlertSettings({ isOpen, onClose }: StockAlertSettin
     <Modal 
       isOpen={isOpen} 
       onClose={handleClose}
-      size="2xl"
+      size="3xl"
       backdrop="blur"
       classNames={{
         backdrop: "bg-black/50 backdrop-blur-sm",
@@ -313,11 +313,11 @@ export default function StockAlertSettings({ isOpen, onClose }: StockAlertSettin
                 </div>
               </div>
 
-              {/* Low Stock Threshold */}
+              {/* General Low Stock Threshold */}
               <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-4">
                 <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
                   <Package className="h-4 w-4" />
-                  Low Stock Threshold
+                  General Low Stock Threshold
                 </h3>
                 <Input
                   type="number"
@@ -358,24 +358,24 @@ export default function StockAlertSettings({ isOpen, onClose }: StockAlertSettin
                   }}
                 />
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                  Products with stock below this number will trigger low stock alerts. Stock equal to the threshold will not trigger alerts.
+                  Products with stock below this number will trigger low stock alerts. Stock equal to the threshold will not trigger alerts. This is the default threshold that applies to all products unless overridden by per-product settings.
                 </p>
                 
                 {/* Preview */}
                 <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                  {previewLoading ? (
-                    <p className="text-xs text-blue-700 dark:text-blue-300">
-                      <strong>Preview:</strong> Loading preview data...
-                    </p>
-                  ) : (
-                    <p className="text-xs text-blue-700 dark:text-blue-300">
-                      <strong>Preview:</strong> With threshold of {tempThreshold}, you would have{' '}
-                      <strong>{previewData.lowStockCount} low stock alerts</strong> (stock &lt; {tempThreshold}) and{' '}
-                      <strong>{previewData.outOfStockCount} out of stock alerts</strong>
-                      {' '}(out of {previewData.totalProducts} total products)
-                    </p>
-                  )}
-                </div>
+                    {previewLoading ? (
+                      <p className="text-xs text-blue-700 dark:text-blue-300">
+                        <strong>Preview:</strong> Loading preview data...
+                      </p>
+                    ) : (
+                      <p className="text-xs text-blue-700 dark:text-blue-300">
+                        <strong>Preview:</strong> With threshold of {tempThreshold}, you would have{' '}
+                        <strong>{previewData.lowStockCount} low stock alerts</strong> (stock &lt; {tempThreshold}) and{' '}
+                        <strong>{previewData.outOfStockCount} out of stock alerts</strong>
+                        {' '}(out of {previewData.totalProducts} total products)
+                      </p>
+                    )}
+                  </div>
               </div>
             </div>
 

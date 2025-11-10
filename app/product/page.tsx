@@ -170,7 +170,12 @@ const ProductWithSearchParams = () => {
                     value={productData?.filter((p: any) => {
                         const stockValue = p?.stock;
                         const stockNum = typeof stockValue === "string" ? parseInt(stockValue, 10) : stockValue ?? 0;
-                        return Number.isFinite(stockNum) && stockNum > 0 && stockNum <= lowStockThreshold;
+                        // Use product's custom threshold if available, otherwise use general threshold
+                        const productThreshold = (p.lowStockThreshold !== null && p.lowStockThreshold !== undefined)
+                            ? p.lowStockThreshold
+                            : lowStockThreshold;
+                        // Stock must be strictly less than threshold (not <=) to be low stock
+                        return Number.isFinite(stockNum) && stockNum > 0 && stockNum < productThreshold;
                     }).length || 0}
                     icon={Package}
                     color="yellow"

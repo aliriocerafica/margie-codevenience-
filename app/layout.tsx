@@ -4,7 +4,6 @@ import { Link } from "@heroui/link";
 import clsx from "clsx";
 import { Poppins } from "next/font/google";
 import type { Metadata } from 'next'
-import { SessionProvider } from "next-auth/react"
 
 import { Providers } from "./providers";
 import { ThemeSwitch } from "@/components/ThemeSwitch";
@@ -38,11 +37,9 @@ export default function RootLayout({
       <head />
       <body className={`bg-white text-gray-900 dark:bg-gray-900 dark:text-gray-100 font-poppins ${poppins.className}`}>
         <Providers themeProps={{ attribute: "class", defaultTheme: "system" }}>
-          <SessionProvider>
-            <ConditionalLayout>
-              {children}
-            </ConditionalLayout>
-          </SessionProvider>
+          <ConditionalLayout>
+            {children}
+          </ConditionalLayout>
           <SearchModal />
         </Providers>
       </body>

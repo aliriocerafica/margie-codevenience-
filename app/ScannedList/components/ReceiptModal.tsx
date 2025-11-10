@@ -21,6 +21,8 @@ export type ReceiptModalProps = {
         subtotal: number;
         discount: number;
         total: number;
+        amountReceived?: number;
+        change?: number;
         timestamp?: Date;
     };
 };
@@ -71,6 +73,8 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ isOpen, onClose, rec
                     .totals .row { display: flex; justify-content: space-between; padding: 2px 0; }
                     .totals .sep { border-top: 1px dashed #bbb; margin: 6px 0; }
                     .totals .em { font-weight: 800; font-size: 13px; }
+                    .payment { font-size: 12px; margin-top: 4px; }
+                    .payment .row { display: flex; justify-content: space-between; padding: 2px 0; }
                     .footer { text-align: center; margin-top: 10px; }
                     .small { font-size: 10px; color: #666; }
                     .thanks { margin-top: 6px; font-size: 11px; font-weight: 600; }
@@ -124,6 +128,11 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ isOpen, onClose, rec
                         <div class="sep"></div>
                         <div class="row em"><span>Total</span><span>${formatCurrency(receiptData.total)}</span></div>
                     </div>
+                    ${receiptData.amountReceived && receiptData.amountReceived > 0 ? `
+                    <div class="payment">
+                        <div class="row"><span>Amount Received</span><span>${formatCurrency(receiptData.amountReceived)}</span></div>
+                        ${receiptData.change !== undefined && receiptData.change >= 0 ? `<div class="row"><span>Change</span><span>${formatCurrency(receiptData.change)}</span></div>` : ''}
+                    </div>` : ''}
 
                     <hr />
 
@@ -229,6 +238,21 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ isOpen, onClose, rec
                                 <span>Total</span>
                                 <span>{formatCurrency(receiptData.total)}</span>
                             </div>
+                            {receiptData.amountReceived && receiptData.amountReceived > 0 && (
+                                <>
+                                    <hr className="border-dashed border-gray-300 my-1" />
+                                    <div className="flex justify-between">
+                                        <span>Amount Received</span>
+                                        <span>{formatCurrency(receiptData.amountReceived)}</span>
+                                    </div>
+                                    {receiptData.change !== undefined && receiptData.change >= 0 && (
+                                        <div className="flex justify-between">
+                                            <span>Change</span>
+                                            <span>{formatCurrency(receiptData.change)}</span>
+                                        </div>
+                                    )}
+                                </>
+                            )}
                         </div>
 
                         <hr className="border-dashed border-gray-300 my-2" />

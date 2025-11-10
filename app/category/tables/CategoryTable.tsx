@@ -16,10 +16,14 @@ interface CategoryTableProps {
 
 export const CategoryTable: React.FC<CategoryTableProps> = ({ data, isLoading, error, onEdit, onRequestDelete }) => {
   // Enrich rows with a filterable key for product presence
-  const rows = (data || []).map((row: any) => ({
-    ...row,
-    hasProducts: (row?.productCount ?? 0) > 0 ? 'with' : 'none',
-  }));
+  const rows = (data || []).map((row: any) => {
+    const hasProducts = (row?.productCount ?? 0) > 0;
+    return {
+      ...row,
+      hasProducts: hasProducts ? 'with' : 'none',
+      status: hasProducts ? 'Active' : 'Inactive',
+    };
+  });
 
   const PRODUCT_PRESENCE_OPTIONS = [
     { key: 'all', label: 'All' },
@@ -57,6 +61,23 @@ export const CategoryTable: React.FC<CategoryTableProps> = ({ data, isLoading, e
         </div>
       )
     },
+    {
+      key: "status",
+      header: "Status",
+      sortable: true,
+      renderCell: (row: any) => {
+        const hasProducts = (row?.productCount ?? 0) > 0;
+        const label = hasProducts ? "Active" : "Inactive";
+        const colorClasses = hasProducts
+          ? "bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200"
+          : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200";
+        return (
+          <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${colorClasses}`}>
+            {label}
+          </span>
+        );
+      }
+    },
     { 
       key: "createdAt", 
       header: "Created At",
@@ -71,20 +92,37 @@ export const CategoryTable: React.FC<CategoryTableProps> = ({ data, isLoading, e
       key: "actions",
       header: "Actions",
       sortable: false,
-      renderCell: (row: any) => (
-        <div className="flex items-center gap-1 justify-end w-24">
-          <Tooltip content="Edit" placement="top">
-            <Button isIconOnly size="sm" variant="flat" color="primary" onPress={() => onEdit?.(row)}>
-              <Edit size={16} />
-            </Button>
-          </Tooltip>
-          <Tooltip content="Delete" placement="top">
-            <Button isIconOnly size="sm" variant="flat" color="danger" onPress={() => onRequestDelete?.(row)}>
-              <Trash2 size={16} />
-            </Button>
-          </Tooltip>
-        </div>
-      )
+      renderCell: (row: any) => {
+        const hasProducts = (row?.productCount ?? 0) > 0;
+        return (
+          <div className="flex items-center gap-1 justify-end w-24">
+            <Tooltip content="Edit" placement="top">
+              <Button isIconOnly size="sm" variant="flat" color="primary" onPress={() => onEdit?.(row)}>
+                <Edit size={16} />
+              </Button>
+            </Tooltip>
+            <Tooltip
+              content={hasProducts ? "Cannot delete a category while it still has products" : "Delete"}
+              placement="top"
+            >
+              <Button
+                isIconOnly
+                size="sm"
+                variant="flat"
+                color="danger"
+                isDisabled={hasProducts}
+                onPress={() => {
+                  if (!hasProducts) {
+                    onRequestDelete?.(row);
+                  }
+                }}
+              >
+                <Trash2 size={16} />
+              </Button>
+            </Tooltip>
+          </div>
+        );
+      }
     }
   ];
 

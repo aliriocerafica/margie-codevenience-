@@ -14,7 +14,8 @@ import {
   Progress,
   Chip,
   Tabs,
-  Tab
+  Tab,
+  Switch
 } from '@heroui/react';
 import {
   Package,
@@ -55,6 +56,7 @@ interface ProductFormData {
   barcode: string;
   categoryId: string;
   image: string;
+  lowStockThreshold?: number | null;
 }
 
 export default function AddProductModal({ isOpen, onClose, onProductAdded, initialData }: AddProductModalProps) {
@@ -66,7 +68,7 @@ export default function AddProductModal({ isOpen, onClose, onProductAdded, initi
   const [previewImage, setPreviewImage] = useState<string>('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const { refreshNotifications, addNewProductNotification } = useNotifications();
+  const { refreshNotifications, addNewProductNotification, lowStockThreshold: generalThreshold } = useNotifications();
   const [isDragOver, setIsDragOver] = useState(false);
   const [restorationData, setRestorationData] = useState<{
     restoreId: string;
@@ -86,8 +88,10 @@ export default function AddProductModal({ isOpen, onClose, onProductAdded, initi
     stock: '',
     barcode: '',
     categoryId: '',
-    image: ''
+    image: '',
+    lowStockThreshold: null
   });
+  const [useCustomThreshold, setUseCustomThreshold] = useState(false);
 
   // Prefill from initialData when opening
   useEffect(() => {
@@ -105,8 +109,12 @@ export default function AddProductModal({ isOpen, onClose, onProductAdded, initi
       barcode: initialData.barcode ?? prev.barcode,
       categoryId: initialData.categoryId ?? prev.categoryId,
       image: initialData.image ?? prev.image,
+      lowStockThreshold: initialData.lowStockThreshold ?? prev.lowStockThreshold,
     }));
     if (initialData.image) setPreviewImage(initialData.image);
+    if (initialData.lowStockThreshold !== null && initialData.lowStockThreshold !== undefined) {
+      setUseCustomThreshold(true);
+    }
   }, [isOpen, initialData]);
 
   // Fetch categories on modal open
@@ -508,11 +516,13 @@ export default function AddProductModal({ isOpen, onClose, onProductAdded, initi
         stock: '',
         barcode: '',
         categoryId: '',
-        image: ''
+        image: '',
+        lowStockThreshold: null
       });
       setPreviewImage('');
       setSelectedFile(null);
       setErrors({});
+      setUseCustomThreshold(false);
 
       // Call callback if provided
       if (onProductAdded) {
@@ -842,6 +852,57 @@ export default function AddProductModal({ isOpen, onClose, onProductAdded, initi
                         inputWrapper: "h-10 border-2 border-gray-200 hover:border-[#003366] focus-within:border-[#003366] rounded-lg transition-all duration-200"
                       }}
                     />
+                  </div>
+
+                  {/* Low Stock Alert Settings */}
+                  <div className="space-y-2 mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                    <div className="flex items-center justify-between">
+                      <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300">
+                        Low Stock Alert Settings
+                      </label>
+                      <Switch
+                        isSelected={useCustomThreshold}
+                        onValueChange={setUseCustomThreshold}
+                        size="sm"
+                        color="primary"
+                      />
+                    </div>
+                    
+                    {useCustomThreshold ? (
+                      <Input
+                        type="number"
+                        min="1"
+                        max="100"
+                        value={formData.lowStockThreshold?.toString() || ''}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          if (value === '') {
+                            setFormData(prev => ({ ...prev, lowStockThreshold: null }));
+                          } else {
+                            const numValue = parseInt(value);
+                            if (!isNaN(numValue) && numValue >= 1) {
+                              setFormData(prev => ({ ...prev, lowStockThreshold: numValue }));
+                            }
+                          }
+                        }}
+                        placeholder="Enter custom threshold"
+                        size="md"
+                        endContent="units"
+                        classNames={{
+                          input: "text-sm",
+                          inputWrapper: "h-10 border-2 border-gray-200 hover:border-[#003366] focus-within:border-[#003366] rounded-lg transition-all duration-200"
+                        }}
+                      />
+                    ) : (
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        Using general threshold: <strong>{generalThreshold}</strong> units
+                      </p>
+                    )}
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      {useCustomThreshold 
+                        ? "This product will use its custom threshold. Leave empty to use general threshold."
+                        : "This product will use the general low stock threshold set in General Settings."}
+                    </p>
                   </div>
                 </div>
               </div>

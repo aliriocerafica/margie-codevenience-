@@ -3,18 +3,17 @@
 import React from "react";
 import { Input } from "@heroui/input";
 import { Button } from "@heroui/button";
-import { Search, Trash2, ScanLine } from "lucide-react";
+import { Search, ScanLine } from "lucide-react";
 import Link from "next/link";
 
 export type ScannerBarProps = {
 	value: string;
 	onChange: (value: string) => void;
 	onScan: () => void;
-	onClear?: () => void;
 	onSelect?: (product: { id: string; name: string; barcode?: string; price: string | number; status?: string }) => void;
 };
 
-export const ScannerBar: React.FC<ScannerBarProps> = ({ value, onChange, onScan, onClear, onSelect }) => {
+export const ScannerBar: React.FC<ScannerBarProps> = ({ value, onChange, onScan, onSelect }) => {
 	const [allProducts, setAllProducts] = React.useState<any[] | null>(null);
 	const [open, setOpen] = React.useState(false);
 	const containerRef = React.useRef<HTMLDivElement | null>(null);
@@ -96,22 +95,12 @@ export const ScannerBar: React.FC<ScannerBarProps> = ({ value, onChange, onScan,
                     <Button
                         isIconOnly
                         size="lg"
-                        className="h-12 rounded-xl bg-gradient-to-r from-[#003366] to-[#004488] text-white"
-                        startContent={<ScanLine className="w-8 h-8" />}
+                        className="h-12 w-12 rounded-xl bg-gradient-to-r from-[#003366] to-[#004488] text-white"
                         aria-label="Scan"
-                    />
+                    >
+                        <ScanLine className="w-5 h-5" />
+                    </Button>
                 </Link>
-				{onClear && (
-					<Button
-						size="lg"
-						variant="flat"
-						className="h-12 rounded-xl"
-						onPress={onClear}
-						startContent={<Trash2 className="w-4 h-4" />}
-					>
-						Clear
-					</Button>
-				)}
 			</div>
 			{open && suggestions.length > 0 && (
 				<div className="absolute z-10 mt-2 w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-lg max-h-72 overflow-auto">

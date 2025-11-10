@@ -130,8 +130,9 @@ export default function SignupPage() {
                 localStorage.removeItem('rememberedEmail');
             }
 
-            // If successful, redirect manually
+            // If successful, refresh the router to update session and redirect
             if ((result as any)?.ok) {
+                router.refresh(); // Force session refresh
                 router.push('/dashboard');
             } else {
                 setLoading(false);

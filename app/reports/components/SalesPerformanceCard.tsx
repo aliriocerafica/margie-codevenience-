@@ -373,11 +373,30 @@ export default function SalesPerformanceCard() {
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={extendedSalesData}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" opacity={0.3} />
-                      <XAxis dataKey="label" stroke="#6b7280" style={{ fontSize: '14px' }} />
-                      <YAxis stroke="#6b7280" style={{ fontSize: '14px' }} tickFormatter={(value) => `₱${(value / 1000).toFixed(0)}k`} />
+                      <XAxis 
+                        dataKey="label" 
+                        stroke="#6b7280" 
+                        style={{ fontSize: '14px' }}
+                        angle={granularity === 'weekly' ? -45 : 0}
+                        textAnchor={granularity === 'weekly' ? 'end' : 'middle'}
+                        height={granularity === 'weekly' ? 80 : 30}
+                      />
+                      <YAxis 
+                        stroke="#6b7280" 
+                        style={{ fontSize: '14px' }} 
+                        tickFormatter={(value) => {
+                          if (value >= 1000) {
+                            return `₱${(value / 1000).toFixed(0)}k`;
+                          } else {
+                            return `₱${value.toFixed(0)}`;
+                          }
+                        }}
+                        label={{ value: 'Sales Amount', angle: -90, position: 'insideLeft', style: { textAnchor: 'middle' } }}
+                      />
                       <Tooltip 
                         contentStyle={{ backgroundColor: '#1f2937', border: 'none', borderRadius: '8px', color: '#fff' }}
-                        formatter={(value: any) => [`₱${value.toLocaleString()}`, 'Sales']}
+                        formatter={(value: any) => [`₱${value.toLocaleString()}`, 'Net Sales']}
+                        labelFormatter={(label) => `Period: ${label}`}
                       />
                       <Line type="monotone" dataKey="sales" stroke="#3b82f6" strokeWidth={3} dot={{ r: 6 }} activeDot={{ r: 8 }} />
                     </LineChart>

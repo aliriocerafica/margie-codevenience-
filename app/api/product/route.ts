@@ -26,7 +26,7 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { name, brand, product, quantity, size, price, unitCost, stock, status, imageUrl, barcode, categoryId } = body;
+    const { name, brand, product, quantity, size, price, unitCost, stock, status, imageUrl, barcode, categoryId, lowStockThreshold } = body;
 
     if (!name || !price || !stock || !categoryId) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -89,7 +89,8 @@ export async function POST(req: Request) {
         status, 
         imageUrl, 
         barcode: barcode && barcode.trim() !== "" ? barcode.trim() : null, 
-        categoryId 
+        categoryId,
+        lowStockThreshold: lowStockThreshold !== undefined ? lowStockThreshold : null
       },
       include: { category: { select: { name: true } } },
     });

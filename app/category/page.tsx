@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Plus, Tag, Grid, TrendingUp, Tag as TagIcon, Pencil, Trash2, CheckCircle, AlertTriangle } from "lucide-react";
+import { Plus, Tag, Tag as TagIcon, Pencil, Trash2, CheckCircle, AlertTriangle } from "lucide-react";
 import useSWR from "swr";
 import { usePageHighlight } from "@/hooks/usePageHighlight";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -54,9 +54,10 @@ const Category = () => {
 
     // Calculate stats
     const totalCategories = categoryData?.length || 0;
-    const activeCategories = categoryData?.filter((c: any) => c.status === 'active').length || 0;
-    const totalProducts = categoryData?.reduce((sum: number, c: any) => sum + (c.productCount || 0), 0) || 0;
-    const avgProductsPerCategory = totalCategories > 0 ? Math.round(totalProducts / totalCategories) : 0;
+    // Active = categories with products (hasProducts = true)
+    const activeCategories = categoryData?.filter((c: any) => (c.productCount || 0) > 0).length || 0;
+    // Inactive = categories without products (hasProducts = false)
+    const inactiveCategories = categoryData?.filter((c: any) => (c.productCount || 0) === 0).length || 0;
 
     if (currentLoading) {
         return <LoadingSpinner message={LOADING_MESSAGES.categories} variant="card" />;
@@ -86,7 +87,7 @@ const Category = () => {
             />
 
             {/* Quick Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <StatCard
                     title="Total Categories"
                     value={totalCategories}
@@ -100,16 +101,10 @@ const Category = () => {
                     color="green"
                 />
                 <StatCard
-                    title="Total Products"
-                    value={totalProducts}
-                    icon={Grid}
-                    color="purple"
-                />
-                <StatCard
-                    title="Avg Products"
-                    value={avgProductsPerCategory}
-                    icon={TrendingUp}
-                    color="orange"
+                    title="Inactive"
+                    value={inactiveCategories}
+                    icon={Tag}
+                    color="gray"
                 />
             </div>
 

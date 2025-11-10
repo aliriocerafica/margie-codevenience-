@@ -39,22 +39,33 @@ export async function GET(request: NextRequest) {
     console.log(`Found ${products.length} products in database`);
 
     // Convert string stock to number and filter for alerts
-    const processedProducts = products.map(product => ({
-      id: product.id,
-      name: product.name,
-      price: product.price,
-      stock: parseInt(product.stock) || 0,
-      status: product.status,
-      category: product.category.name, // Flatten category to just the name
-      barcode: product.barcode,
-      imageUrl: product.imageUrl,
-      createdAt: product.createdAt,
-      updatedAt: product.updatedAt
-    }));
+    // Use per-product threshold if available, otherwise use general threshold
+    const processedProducts = products.map(product => {
+      const stock = parseInt(product.stock) || 0;
+      // Use product's custom threshold if it exists, otherwise use general threshold
+      const productThreshold = product.lowStockThreshold !== null && product.lowStockThreshold !== undefined
+        ? product.lowStockThreshold
+        : thresholdNum;
+      
+      return {
+        id: product.id,
+        name: product.name,
+        price: product.price,
+        stock: stock,
+        status: product.status,
+        category: product.category.name, // Flatten category to just the name
+        barcode: product.barcode,
+        imageUrl: product.imageUrl,
+        createdAt: product.createdAt,
+        updatedAt: product.updatedAt,
+        threshold: productThreshold
+      };
+    });
 
     // Separate low stock and out of stock products
+    // Use each product's individual threshold
     const lowStockProducts = processedProducts.filter(p => 
-      p.stock < thresholdNum && p.stock > 0
+      p.stock < p.threshold && p.stock > 0
     );
     
     const outOfStockProducts = processedProducts.filter(p => 

@@ -10,6 +10,7 @@ interface User {
   id: string;
   email: string;
   role: string;
+  isActive: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -27,10 +28,16 @@ const USER_ROLE_COLORS = {
   Staff: "primary",
 } as const;
 
-const USER_STATUS_OPTIONS = [
+const USER_ROLE_OPTIONS = [
   { key: "all", label: "All Roles" },
   { key: "Admin", label: "Admin" },
   { key: "Staff", label: "Staff" },
+];
+
+const USER_STATUS_OPTIONS = [
+  { key: "all", label: "All Status" },
+  { key: "active", label: "Active" },
+  { key: "inactive", label: "Inactive" },
 ];
 
 export const UserTable: React.FC<UserTableProps> = ({
@@ -40,10 +47,10 @@ export const UserTable: React.FC<UserTableProps> = ({
   onEdit,
   onDelete,
 }) => {
-  // Transform data to include status field that matches role for filtering
+  // Transform data to include status field for filtering
   const transformedData = data?.map((user) => ({
     ...user,
-    status: user.role, // Add status field that matches role for DataTable filtering
+    status: user.isActive ? "active" : "inactive", // Add status field for DataTable filtering
   }));
 
   const columns = [
@@ -79,6 +86,24 @@ export const UserTable: React.FC<UserTableProps> = ({
           variant="flat"
         >
           {row.role}
+        </Chip>
+      ),
+    },
+    {
+      key: "isActive",
+      header: "Status",
+      renderCell: (row: User) => (
+        <Chip
+          className={`${
+            row.isActive
+              ? "bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-300"
+              : "bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300"
+          }`}
+          color={row.isActive ? "success" : "danger"}
+          size="sm"
+          variant="flat"
+        >
+          {row.isActive ? "Active" : "Inactive"}
         </Chip>
       ),
     },
@@ -152,7 +177,8 @@ export const UserTable: React.FC<UserTableProps> = ({
           filter={true}
           isLoading={true}
           label="User List"
-          statusOptions={USER_STATUS_OPTIONS}
+          statusOptions={USER_ROLE_OPTIONS}
+          filterKey="role"
           filterLabel="Filter Role"
         />
       </div>
@@ -169,7 +195,8 @@ export const UserTable: React.FC<UserTableProps> = ({
           error={error}
           filter={true}
           label="User List"
-          statusOptions={USER_STATUS_OPTIONS}
+          statusOptions={USER_ROLE_OPTIONS}
+          filterKey="role"
           filterLabel="Filter Role"
         />
       </div>
@@ -184,7 +211,8 @@ export const UserTable: React.FC<UserTableProps> = ({
         description="Manage system users and their access levels."
         filter={true}
         label="User List"
-        statusOptions={USER_STATUS_OPTIONS}
+        statusOptions={USER_ROLE_OPTIONS}
+        filterKey="role"
         filterLabel="Filter Role"
       />
     </div>

@@ -20,7 +20,7 @@ export type ScanPanelProps = {
 export const ScanPanel: React.FC<ScanPanelProps> = ({ query, onQueryChange, onScan, onSelect, items, onIncrease, onDecrease, onRemove, onQuantityChange, onClear }) => {
     return (
         <div className="space-y-4">
-            <ScannerBar value={query} onChange={onQueryChange} onScan={onScan} onSelect={onSelect} onClear={onClear} />
+            <ScannerBar value={query} onChange={onQueryChange} onScan={onScan} onSelect={onSelect} />
             <ScannedProductsTable items={items} onIncrease={onIncrease} onDecrease={onDecrease} onRemove={onRemove} onQuantityChange={onQuantityChange} />
         </div>
     );

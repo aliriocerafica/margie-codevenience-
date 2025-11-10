@@ -6,7 +6,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   try {
     const { id } = await params;
     const body = await request.json();
-    const { name, brand, product, quantity, size, price, unitCost, stock, barcode, categoryId, imageUrl, oldImageUrl } = body;
+    const { name, brand, product, quantity, size, price, unitCost, stock, barcode, categoryId, imageUrl, oldImageUrl, lowStockThreshold } = body;
 
     if (!name || !price || !stock || !categoryId) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -31,12 +31,23 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       }
     }
 
+    // Get the product to check for custom threshold
+    const existingProduct = await prisma.product.findUnique({
+      where: { id },
+      select: { lowStockThreshold: true }
+    });
+
     // Calculate status based on stock level
+    // Use product's custom threshold if available, otherwise use default (10)
+    // If updating lowStockThreshold, use the new value; otherwise use existing
     const stockNum = parseInt(stock) || 0;
+    const threshold = lowStockThreshold !== undefined 
+      ? (lowStockThreshold ?? 10)
+      : (existingProduct?.lowStockThreshold ?? 10);
     let status = "available";
     if (stockNum <= 0) {
       status = "out_of_stock";
-    } else if (stockNum <= 10) { // Default low stock threshold
+    } else if (stockNum < threshold) {
       status = "low_stock";
     }
 
@@ -55,6 +66,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     };
     if (barcode !== null) updateData.barcode = barcode && barcode.trim() !== "" ? barcode.trim() : null;
     if (imageUrl !== null) updateData.imageUrl = imageUrl;
+    if (lowStockThreshold !== undefined) updateData.lowStockThreshold = lowStockThreshold !== null ? lowStockThreshold : null;
 
     const updated = await prisma.product.update({
       where: { id },

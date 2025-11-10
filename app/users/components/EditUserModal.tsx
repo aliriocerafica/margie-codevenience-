@@ -11,6 +11,7 @@ import {
   Input,
   Select,
   SelectItem,
+  Switch,
 } from "@heroui/react";
 import { Mail, Eye, EyeOff, Lock, PencilLine } from "lucide-react";
 
@@ -18,6 +19,7 @@ interface User {
   id: string;
   email: string;
   role: string;
+  isActive: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -33,6 +35,7 @@ export const EditUserModal: React.FC<EditUserModalProps> = ({ isOpen, user, onCl
   const [email, setEmail] = useState("");
   const [role, setRole] = useState("Admin");
   const [password, setPassword] = useState("");
+  const [isActive, setIsActive] = useState(true);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [emailError, setEmailError] = useState("");
@@ -43,6 +46,7 @@ export const EditUserModal: React.FC<EditUserModalProps> = ({ isOpen, user, onCl
     if (user) {
       setEmail(user.email);
       setRole(user.role);
+      setIsActive(user.isActive ?? true);
       setPassword("");
       setEmailError("");
       setPasswordError("");
@@ -69,9 +73,10 @@ export const EditUserModal: React.FC<EditUserModalProps> = ({ isOpen, user, onCl
     return (
       email !== user.email ||
       role !== user.role ||
+      isActive !== (user.isActive ?? true) ||
       (password && password.length > 0)
     );
-  }, [email, role, password, user]);
+  }, [email, role, password, isActive, user]);
 
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -94,7 +99,7 @@ export const EditUserModal: React.FC<EditUserModalProps> = ({ isOpen, user, onCl
       const res = await fetch("/api/users", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: user.id, email, role, password: password || undefined }),
+        body: JSON.stringify({ id: user.id, email, role, password: password || undefined, isActive }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -220,6 +225,30 @@ export const EditUserModal: React.FC<EditUserModalProps> = ({ isOpen, user, onCl
                 <SelectItem key="Admin">Admin</SelectItem>
                 <SelectItem key="Staff">Staff</SelectItem>
               </Select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                Account Status
+              </label>
+              <Switch
+                isSelected={isActive}
+                onValueChange={setIsActive}
+                size="lg"
+                classNames={{
+                  wrapper: "p-0 h-7 overflow-visible",
+                  thumb: "w-6 h-6 border-2 shadow-lg",
+                }}
+              >
+                <span className="text-sm text-gray-700 dark:text-gray-300">
+                  {isActive ? "Active" : "Inactive"}
+                </span>
+              </Switch>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                {isActive 
+                  ? "User can log in and access the system" 
+                  : "User cannot log in. Please contact store owner."}
+              </p>
             </div>
 
             {message && (

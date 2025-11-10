@@ -11,6 +11,7 @@ import {
   Input,
   Select,
   SelectItem,
+  Switch,
 } from "@heroui/react";
 import { Mail, Eye, EyeOff, Lock, UserPlus } from "lucide-react";
 
@@ -18,6 +19,7 @@ interface User {
   id: string;
   email: string;
   role: string;
+  isActive: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -36,6 +38,7 @@ export const AddUserModal: React.FC<AddUserModalProps> = ({
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState("Admin");
+  const [isActive, setIsActive] = useState(true);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [emailError, setEmailError] = useState("");
@@ -73,6 +76,7 @@ export const AddUserModal: React.FC<AddUserModalProps> = ({
     setEmail("");
     setPassword("");
     setRole("Admin");
+    setIsActive(true);
     setEmailError("");
     setPasswordError("");
     setMessage("");
@@ -106,7 +110,7 @@ export const AddUserModal: React.FC<AddUserModalProps> = ({
       const res = await fetch("/api/users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password, role }),
+        body: JSON.stringify({ email, password, role, isActive }),
       });
       
       const data = await res.json();
@@ -237,6 +241,30 @@ export const AddUserModal: React.FC<AddUserModalProps> = ({
                 <SelectItem key="Admin">Admin</SelectItem>
                 <SelectItem key="Staff">Staff</SelectItem>
               </Select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                Account Status
+              </label>
+              <Switch
+                isSelected={isActive}
+                onValueChange={setIsActive}
+                size="lg"
+                classNames={{
+                  wrapper: "p-0 h-7 overflow-visible",
+                  thumb: "w-6 h-6 border-2 shadow-lg",
+                }}
+              >
+                <span className="text-sm text-gray-700 dark:text-gray-300">
+                  {isActive ? "Active" : "Inactive"}
+                </span>
+              </Switch>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                {isActive 
+                  ? "User can log in and access the system" 
+                  : "User cannot log in. Please contact store owner."}
+              </p>
             </div>
 
             {message && (

@@ -9,6 +9,7 @@ export async function GET() {
         id: true,
         email: true,
         role: true,
+        isActive: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -28,7 +29,7 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { email, password, role } = body;
+    const { email, password, role, isActive } = body;
 
     if (!email || !password || !role) {
       return NextResponse.json(
@@ -57,6 +58,7 @@ export async function POST(req: Request) {
         email,
         password: hashedPassword,
         role,
+        isActive: isActive !== undefined ? isActive : true,
       },
     });
 
@@ -67,6 +69,7 @@ export async function POST(req: Request) {
           id: newUser.id, 
           email: newUser.email, 
           role: newUser.role,
+          isActive: newUser.isActive,
           createdAt: newUser.createdAt 
         } 
       },
@@ -81,11 +84,12 @@ export async function POST(req: Request) {
 export async function PATCH(req: Request) {
   try {
     const body = await req.json();
-    const { id, email, role, password } = body as {
+    const { id, email, role, password, isActive } = body as {
       id?: string;
       email?: string;
       role?: string;
       password?: string;
+      isActive?: boolean;
     };
 
     if (!id) {
@@ -122,6 +126,10 @@ export async function PATCH(req: Request) {
       dataToUpdate.role = role;
     }
 
+    if (isActive !== undefined && isActive !== existingUser.isActive) {
+      dataToUpdate.isActive = isActive;
+    }
+
     if (password && password.length > 0) {
       const bcrypt = require("bcryptjs");
       const hashedPassword = await bcrypt.hash(password, 10);
@@ -134,6 +142,7 @@ export async function PATCH(req: Request) {
           id: existingUser.id,
           email: existingUser.email,
           role: existingUser.role,
+          isActive: existingUser.isActive,
           createdAt: existingUser.createdAt,
           updatedAt: existingUser.updatedAt,
         } },
@@ -148,6 +157,7 @@ export async function PATCH(req: Request) {
         id: true,
         email: true,
         role: true,
+        isActive: true,
         createdAt: true,
         updatedAt: true,
       }

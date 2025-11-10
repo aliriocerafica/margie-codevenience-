@@ -117,8 +117,6 @@ export default function ReportsPage() {
   const MOVEMENT_STATUS_OPTIONS = [
     { key: "all", label: "All Types" },
     { key: "sale", label: "Sale" },
-    { key: "refund", label: "Refund" },
-    { key: "manual", label: "Manual" },
     { key: "void", label: "Void" },
   ];
 
@@ -399,7 +397,7 @@ export default function ReportsPage() {
         columns={columns as any}
         data={rows}
           label="Stock Movements"
-          description="All inventory movements from sales, refunds, voids, and manual adjustments."
+          description="All inventory movements from sales and void adjustments."
         isLoading={isLoading}
         customFilters={(
           <div className="flex items-center gap-4 focus-visible-ring">

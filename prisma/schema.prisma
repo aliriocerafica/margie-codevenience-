@@ -14,29 +14,31 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   role      String
+  isActive  Boolean  @default(true)
   carts     Cart[]
 }
 
 model Product {
-  id         String     @id @default(auto()) @map("_id") @db.ObjectId
-  name       String
-  brand      String?    // Lucky Me, Mega, etc.
-  product    String?    // Pancit Canton, Sardines, etc.
-  quantity   String?    // 1 pc, 1 can, etc.
-  size       String?    // 150g, 1L, etc.
-  price      String     // Selling price (retail price with tubo)
-  unitCost   String?    // Original price (cost price)
-  stock      String
-  status     String     @default("available")
-  imageUrl   String?
-  barcode    String?    @unique
-  createdAt  DateTime   @default(now())
-  updatedAt  DateTime   @updatedAt
-  categoryId String     @db.ObjectId
-  category   Category   @relation(fields: [categoryId], references: [id])
-  sales      Sale[]
-  movements  StockMovement[]
-  cartItems  CartItem[]
+  id                String     @id @default(auto()) @map("_id") @db.ObjectId
+  name              String
+  brand             String?    // Lucky Me, Mega, etc.
+  product           String?    // Pancit Canton, Sardines, etc.
+  quantity          String?    // 1 pc, 1 can, etc.
+  size              String?    // 150g, 1L, etc.
+  price             String     // Selling price (retail price with tubo)
+  unitCost          String?    // Original price (cost price)
+  stock             String
+  status            String     @default("available")
+  imageUrl          String?
+  barcode           String?    @unique
+  lowStockThreshold Int?       // Custom low stock threshold per product (null = use general threshold)
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+  categoryId        String     @db.ObjectId
+  category          Category   @relation(fields: [categoryId], references: [id])
+  sales             Sale[]
+  movements         StockMovement[]
+  cartItems         CartItem[]
 }
 
 model Category {

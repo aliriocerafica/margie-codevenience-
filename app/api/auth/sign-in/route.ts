@@ -17,5 +17,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Incorrect password. Please check your password and try again.' }, { status: 401 });
   }
 
+  if (!user.isActive) {
+    return NextResponse.json({ error: 'Your account is inactive. Please contact store owner.' }, { status: 403 });
+  }
+
   return NextResponse.json({ message: 'Login successful', id: user.id,  email: user.email, role: user.role,}, { status: 200 });
 }

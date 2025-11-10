@@ -12,12 +12,14 @@ export type ReceiptLine = {
 export type ReceiptSummaryProps = {
     subtotal: number;
     discount: number; // absolute amount
+    amountReceived?: number;
+    change?: number;
     additionalFees?: ReceiptLine[];
     onCheckout?: () => void;
     onClear?: () => void;
 };
 
-export const ReceiptSummary: React.FC<ReceiptSummaryProps> = ({ subtotal, discount, additionalFees = [], onCheckout, onClear }) => {
+export const ReceiptSummary: React.FC<ReceiptSummaryProps> = ({ subtotal, discount, amountReceived = 0, change = 0, additionalFees = [], onCheckout, onClear }) => {
     const formatCurrency2dp = (amount: number) => {
         return new Intl.NumberFormat('en-PH', {
             style: 'currency',
@@ -57,6 +59,21 @@ export const ReceiptSummary: React.FC<ReceiptSummaryProps> = ({ subtotal, discou
                     <span className="font-semibold">{formatCurrency2dp(grandTotal)}</span>
                 </div>
             </div>
+
+            {amountReceived > 0 && (
+                <div className="space-y-2 text-sm border-t border-gray-200 dark:border-gray-800 pt-3">
+                    <div className="flex items-center justify-between">
+                        <span className="text-gray-600 dark:text-gray-400">Amount Received</span>
+                        <span className="font-medium">{formatCurrency2dp(amountReceived)}</span>
+                    </div>
+                    {change >= 0 && (
+                        <div className="flex items-center justify-between">
+                            <span className="text-gray-600 dark:text-gray-400">Change</span>
+                            <span className="font-medium text-green-600 dark:text-green-400">{formatCurrency2dp(change)}</span>
+                        </div>
+                    )}
+                </div>
+            )}
 
             <div className="flex gap-3 pt-2">
                 <button

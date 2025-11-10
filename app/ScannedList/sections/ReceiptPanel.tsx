@@ -14,6 +14,7 @@ export type ReceiptPanelProps = {
 
 export const ReceiptPanel: React.FC<ReceiptPanelProps> = ({ items, onClearItems }) => {
     const [discount, setDiscount] = useState<number>(0);
+    const [amountReceived, setAmountReceived] = useState<number>(0);
     const [isConfirmOpen, setIsConfirmOpen] = useState(false);
     const [isReceiptOpen, setIsReceiptOpen] = useState(false);
     const [receiptData, setReceiptData] = useState<any>(null);
@@ -40,15 +41,19 @@ export const ReceiptPanel: React.FC<ReceiptPanelProps> = ({ items, onClearItems 
             return;
         }
 
-        // Client-side stock validation
-        const insufficientStockItems: string[] = [];
-        for (const item of items) {
-            // Get current stock from the item's status or fetch from API
-            // For now, we'll rely on server-side validation, but this could be enhanced
-            // to fetch real-time stock levels before checkout
+        const total = Math.max(0, subtotal - discount);
+        
+        // Validate amount received
+        if (amountReceived <= 0) {
+            showNotification({
+                title: 'Amount Received Required',
+                description: 'Please enter the amount received before proceeding with checkout.',
+                type: 'error'
+            });
+            return;
         }
 
-        const total = Math.max(0, subtotal - discount);
+        const change = Math.max(0, amountReceived - total);
 
         try {
             const response = await fetch("/api/checkout", {
@@ -106,6 +111,8 @@ export const ReceiptPanel: React.FC<ReceiptPanelProps> = ({ items, onClearItems 
                 subtotal,
                 discount,
                 total,
+                amountReceived,
+                change,
                 timestamp: new Date(),
             });
             setIsReceiptOpen(true);
@@ -160,6 +167,7 @@ export const ReceiptPanel: React.FC<ReceiptPanelProps> = ({ items, onClearItems 
             setIsConfirmOpen(false);
             setPendingSummary(null);
             setPendingItems([]);
+            setAmountReceived(0);
             onClearItems();
         } finally {
             setIsProcessing(false);
@@ -196,7 +204,11 @@ export const ReceiptPanel: React.FC<ReceiptPanelProps> = ({ items, onClearItems 
     const handleClear = () => {
         onClearItems();
         setDiscount(0);
+        setAmountReceived(0);
     };
+
+    const total = Math.max(0, subtotal - discount);
+    const change = Math.max(0, amountReceived - total);
 
     return (
         <div className="space-y-4">
@@ -211,11 +223,23 @@ export const ReceiptPanel: React.FC<ReceiptPanelProps> = ({ items, onClearItems 
                         min={0}
                     />
                 </div>
+                <div className="flex items-center justify-between">
+                    <label className="text-sm text-gray-600 dark:text-gray-400">Amount Received (₱)</label>
+                    <input 
+                        type="number" 
+                        className="w-32 h-10 rounded-lg border border-gray-200 dark:border-gray-800 bg-transparent px-3"
+                        value={amountReceived}
+                        onChange={e => setAmountReceived(Math.max(0, Number(e.target.value || 0)))}
+                        min={0}
+                    />
+                </div>
             </div>
 
             <ReceiptSummary 
                 subtotal={subtotal}
                 discount={discount}
+                amountReceived={amountReceived}
+                change={change}
                 additionalFees={[]}
                 onCheckout={handleCheckout}
                 onClear={handleClear}

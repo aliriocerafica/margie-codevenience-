@@ -79,7 +79,11 @@ export async function POST(req: NextRequest) {
         const afterStock = action === "sale"
           ? Math.max(0, beforeStock - it.quantity)
           : beforeStock + it.quantity;
-        const status = computeStatus(afterStock, threshold);
+        // Use product's custom threshold if available, otherwise use general threshold
+        const productThreshold = prod.lowStockThreshold !== null && prod.lowStockThreshold !== undefined
+          ? prod.lowStockThreshold
+          : threshold;
+        const status = computeStatus(afterStock, productThreshold);
 
         if (action === "sale") {
           if (status === "out_of_stock") outNow.push(prod.id);
