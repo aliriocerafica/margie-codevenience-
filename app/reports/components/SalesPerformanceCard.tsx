@@ -1,11 +1,12 @@
 "use client";
 
-import { Card, CardHeader, CardBody, Button, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Select, SelectItem } from "@heroui/react";
-import { BarChart3, TrendingUp, Download } from "lucide-react";
+import { Card, CardHeader, CardBody, Button, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Select, SelectItem, Tabs, Tab, Input } from "@heroui/react";
+import { BarChart3, TrendingUp, Download, FileText, RotateCcw } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, BarChart, Bar } from 'recharts';
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import useSWR from "swr";
 import * as XLSX from 'xlsx';
+import DataTable from "@/components/DataTable";
 
 const fetcher = (url: string) => fetch(url).then(r => r.json());
 
@@ -14,13 +15,25 @@ export default function SalesPerformanceCard() {
   const [isExportOpen, setIsExportOpen] = useState(false);
   const [exportFileType, setExportFileType] = useState<string>("xlsx");
   const [period, setPeriod] = useState<string>("7days");
-  const [modalPeriod, setModalPeriod] = useState<string>("6months");
-  const [granularity, setGranularity] = useState<"daily" | "weekly" | "monthly">("daily");
+  const [modalPeriod, setModalPeriod] = useState<string>("monthly");
+  const [activeTab, setActiveTab] = useState<string>("overview");
+  const [reportDateFrom, setReportDateFrom] = useState<string>("");
+  const [reportDateTo, setReportDateTo] = useState<string>("");
+
+  // Auto-determine granularity based on period
+  const getGranularity = (period: string): "daily" | "weekly" | "monthly" => {
+    if (period === "all") return "monthly";
+    if (period === "daily" || period === "weekly") return "daily";
+    if (period === "monthly") return "daily";
+    return "daily";
+  };
+
+  const granularity = getGranularity(modalPeriod);
 
   // Fetch data for card preview (7 days)
-  const { data: cardData, error: cardError } = useSWR(`/api/reports/sales-performance?period=${period}&granularity=${granularity}`, fetcher);
+  const { data: cardData, error: cardError } = useSWR(`/api/reports/sales-performance?period=${period}&granularity=daily`, fetcher);
   
-  // Fetch data for modal (6 months)
+  // Fetch data for modal
   const { data: modalData, error: modalError } = useSWR(
     isModalOpen ? `/api/reports/sales-performance?period=${modalPeriod}&granularity=${granularity}` : null,
     fetcher
@@ -93,9 +106,123 @@ export default function SalesPerformanceCard() {
     // Growth Metrics
     salesGrowth: 0,
     transactionsGrowth: 0,
+    // New Summary Metrics
+    totalRevenue: 0,
+    totalCOGS: 0,
+    grossProfit: 0,
+    totalQuantitySold: 0,
   };
 
   const rows = (modalData?.rows ?? []) as any[];
+
+  // Fetch data for detailed reports
+  const detailedSalesQuery = useMemo(() => {
+    const params = new URLSearchParams();
+    if (reportDateFrom) params.set("dateFrom", reportDateFrom);
+    if (reportDateTo) params.set("dateTo", reportDateTo);
+    return `/api/reports/detailed-sales?${params.toString()}`;
+  }, [reportDateFrom, reportDateTo]);
+
+  const profitMarginQuery = useMemo(() => {
+    const params = new URLSearchParams();
+    if (reportDateFrom) params.set("dateFrom", reportDateFrom);
+    if (reportDateTo) params.set("dateTo", reportDateTo);
+    return `/api/reports/profit-margin?${params.toString()}`;
+  }, [reportDateFrom, reportDateTo]);
+
+  const returnedItemsQuery = useMemo(() => {
+    const params = new URLSearchParams();
+    if (reportDateFrom) params.set("dateFrom", reportDateFrom);
+    if (reportDateTo) params.set("dateTo", reportDateTo);
+    return `/api/reports/returned-items?${params.toString()}`;
+  }, [reportDateFrom, reportDateTo]);
+
+  const { data: detailedSalesData } = useSWR(
+    isModalOpen && activeTab === "detailed-sales" ? detailedSalesQuery : null,
+    fetcher
+  );
+  const { data: profitMarginData } = useSWR(
+    isModalOpen && activeTab === "profit-margin" ? profitMarginQuery : null,
+    fetcher
+  );
+  const { data: returnedItemsData } = useSWR(
+    isModalOpen && activeTab === "returned-items" ? returnedItemsQuery : null,
+    fetcher
+  );
+
+  const detailedSalesRows = detailedSalesData?.rows || [];
+  const profitMarginRows = profitMarginData?.rows || [];
+  const returnedItemsRows = returnedItemsData?.rows || [];
+
+  const exportCurrentTab = () => {
+    const timestamp = new Date().toISOString().slice(0, 10);
+    
+    if (activeTab === "detailed-sales") {
+      const workbook = XLSX.utils.book_new();
+      const sheetData = detailedSalesRows.map((r: any) => ({
+        'Date & Time': new Date(r.dateTime).toLocaleString(),
+        'Transaction No.': r.transactionNo,
+        'Product Name': r.productName,
+        'Barcode': r.barcode,
+        'Quantity': r.quantity,
+        'Unit Price (₱)': r.unitPrice,
+        'Total (₱)': r.total,
+      }));
+      const sheet = XLSX.utils.json_to_sheet(sheetData);
+      sheet['!cols'] = [
+        { wch: 20 }, { wch: 20 }, { wch: 30 }, { wch: 15 }, { wch: 10 }, { wch: 15 }, { wch: 15 }
+      ];
+      XLSX.utils.book_append_sheet(workbook, sheet, 'Detailed Sales');
+      XLSX.writeFile(workbook, `detailed-sales-${timestamp}.xlsx`);
+      setIsExportOpen(false);
+      return;
+    }
+    
+    if (activeTab === "profit-margin") {
+      const workbook = XLSX.utils.book_new();
+      const sheetData = profitMarginRows.map((r: any) => ({
+        'Product Name': r.productName,
+        'Cost per Unit (₱)': r.costPerUnit,
+        'Selling Price (₱)': r.sellingPrice,
+        'Gross Profit per Unit (₱)': r.grossProfitPerUnit,
+        'Qty Sold': r.qtySold,
+        'Total Profit (₱)': r.totalProfit,
+        'Profit Margin (%)': r.profitMargin,
+      }));
+      const sheet = XLSX.utils.json_to_sheet(sheetData);
+      sheet['!cols'] = [
+        { wch: 30 }, { wch: 15 }, { wch: 15 }, { wch: 20 }, { wch: 12 }, { wch: 15 }, { wch: 15 }
+      ];
+      XLSX.utils.book_append_sheet(workbook, sheet, 'Profit Margin');
+      XLSX.writeFile(workbook, `profit-margin-${timestamp}.xlsx`);
+      setIsExportOpen(false);
+      return;
+    }
+    
+    if (activeTab === "returned-items") {
+      const workbook = XLSX.utils.book_new();
+      const sheetData = returnedItemsRows.map((r: any) => ({
+        'Date': new Date(r.date).toLocaleDateString(),
+        'Transaction No.': r.transactionNo,
+        'Product Name': r.productName,
+        'Quantity': r.quantity,
+        'Refund Amount (₱)': r.refundAmount,
+        'Reason for Return': r.reason || '-',
+        'Handled By': r.handledBy || '-',
+      }));
+      const sheet = XLSX.utils.json_to_sheet(sheetData);
+      sheet['!cols'] = [
+        { wch: 15 }, { wch: 20 }, { wch: 30 }, { wch: 10 }, { wch: 15 }, { wch: 25 }, { wch: 15 }
+      ];
+      XLSX.utils.book_append_sheet(workbook, sheet, 'Returned Items');
+      XLSX.writeFile(workbook, `returned-items-${timestamp}.xlsx`);
+      setIsExportOpen(false);
+      return;
+    }
+
+    // For overview tab, open export modal instead
+    setIsExportOpen(true);
+  };
 
   const exportSalesPerformance = () => {
     const timestamp = new Date().toISOString().slice(0, 10);
@@ -106,7 +233,7 @@ export default function SalesPerformanceCard() {
       // Summary Section
       const summaryLines = [
         "SALES PERFORMANCE REPORT",
-        `Period: ${modalPeriod === '6months' ? '6 Months' : '30 Days'}`,
+        `Period: ${modalPeriod === 'all' ? 'All Time' : modalPeriod === 'monthly' ? 'Last 30 Days' : modalPeriod === 'weekly' ? 'Last 7 Days' : 'Today'}`,
         `Generated: ${new Date().toLocaleString()}`,
         "",
         "SUMMARY METRICS",
@@ -139,7 +266,7 @@ export default function SalesPerformanceCard() {
       // Summary Sheet
       const summaryData = [
         ['SALES PERFORMANCE REPORT'],
-        ['Period', modalPeriod === '6months' ? '6 Months' : '30 Days'],
+        ['Period', modalPeriod === 'all' ? 'All Time' : modalPeriod === 'monthly' ? 'Last 30 Days' : modalPeriod === 'weekly' ? 'Last 7 Days' : 'Today'],
         ['Generated', new Date().toLocaleString()],
         [],
         ['FINANCIAL METRICS'],
@@ -274,101 +401,89 @@ export default function SalesPerformanceCard() {
             </div>
           </ModalHeader>
           <ModalBody className="py-6">
-            <div className="space-y-6">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="p-4 bg-blue-50 dark:bg-gray-800 rounded-lg">
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Net Sales ({modalPeriod === '6months' ? '6 months' : '30 days'})</p>
-                  <p className="text-3xl font-bold text-gray-900 dark:text-gray-100">₱{modalSummary.netSales.toLocaleString()}</p>
-                  <div className={`flex items-center gap-1 mt-1 ${modalSummary.salesGrowth >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                    <TrendingUp className={`h-4 w-4 ${modalSummary.salesGrowth < 0 ? 'rotate-180' : ''}`} />
-                    <span className="text-sm font-semibold">{modalSummary.salesGrowth >= 0 ? '+' : ''}{modalSummary.salesGrowth}% from last period</span>
+            <Tabs 
+              selectedKey={activeTab}
+              onSelectionChange={(key) => setActiveTab(key as string)}
+              aria-label="Sales Performance Tabs"
+              classNames={{
+                tabList: "gap-6 w-full relative rounded-none p-0 border-b border-divider",
+                cursor: "w-full bg-blue-500",
+                tab: "max-w-fit px-0 h-12",
+                tabContent: "group-data-[selected=true]:text-blue-600 dark:group-data-[selected=true]:text-blue-400"
+              }}
+            >
+              <Tab 
+                key="overview" 
+                title={
+                  <div className="flex items-center space-x-2">
+                    <BarChart3 className="w-4 h-4" />
+                    <span>Overview</span>
                   </div>
-                </div>
-                <div className="p-4 bg-green-50 dark:bg-gray-800 rounded-lg">
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Sales Transactions</p>
-                  <p className="text-3xl font-bold text-gray-900 dark:text-gray-100">{modalSummary.salesTransactions.toLocaleString()}</p>
-                  <div className="text-blue-600 dark:text-blue-400 flex items-center gap-1 mt-1">
-                    <span className="text-sm font-semibold">Completed sales</span>
+                }
+              >
+                <div className="space-y-6 pt-4">
+                  {/* Period Filter */}
+                  <div className="flex items-center gap-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Filter by:</span>
+                      <Select
+                        selectedKeys={[modalPeriod]}
+                        onSelectionChange={(keys) => {
+                          const [k] = Array.from(keys) as string[];
+                          setModalPeriod(k);
+                        }}
+                        size="sm"
+                        className="w-32"
+                      >
+                        <SelectItem key="daily">Daily</SelectItem>
+                        <SelectItem key="weekly">Weekly</SelectItem>
+                        <SelectItem key="monthly">Monthly</SelectItem>
+                        <SelectItem key="all">All Time</SelectItem>
+                      </Select>
+                    </div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400">
+                      {modalPeriod === "daily" && "Today's sales"}
+                      {modalPeriod === "weekly" && "Last 7 days"}
+                      {modalPeriod === "monthly" && "Last 30 days"}
+                      {modalPeriod === "all" && "All time sales"}
+                    </div>
                   </div>
+
+              {/* Summary Cards Overview */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="p-6 bg-blue-50 dark:bg-gray-800 rounded-lg border border-blue-200 dark:border-blue-700">
+                  <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Total Transactions</p>
+                  <p className="text-3xl font-bold text-gray-900 dark:text-gray-100">{modalSummary.totalTransactions?.toLocaleString() || 0}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">All sales and returns</p>
                 </div>
-              </div>
-              
-              <div className="grid grid-cols-4 gap-4">
-                <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Gross Sales</p>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">₱{modalSummary.grossSales.toLocaleString()}</p>
+                
+                <div className="p-6 bg-green-50 dark:bg-gray-800 rounded-lg border border-green-200 dark:border-green-700">
+                  <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Total Revenue</p>
+                  <p className="text-3xl font-bold text-gray-900 dark:text-gray-100">₱{modalSummary.totalRevenue?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Unit price × quantity sold</p>
                 </div>
-                <div className="p-4 bg-red-50 dark:bg-gray-800 rounded-lg">
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Returns</p>
-                  <p className="text-2xl font-bold text-red-600 dark:text-red-400">₱{modalSummary.returnsAmount.toLocaleString()}</p>
+                
+                <div className="p-6 bg-orange-50 dark:bg-gray-800 rounded-lg border border-orange-200 dark:border-orange-700">
+                  <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Total Cost of Goods Sold</p>
+                  <p className="text-3xl font-bold text-gray-900 dark:text-gray-100">₱{modalSummary.totalCOGS?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Original price × quantity sold</p>
                 </div>
-                <div className="p-4 bg-orange-50 dark:bg-gray-800 rounded-lg">
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Return Rate</p>
-                  <p className="text-2xl font-bold text-orange-600 dark:text-orange-400">{modalSummary.returnRate.toFixed(1)}%</p>
+                
+                <div className="p-6 bg-purple-50 dark:bg-gray-800 rounded-lg border border-purple-200 dark:border-purple-700">
+                  <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Gross Profit</p>
+                  <p className="text-3xl font-bold text-gray-900 dark:text-gray-100">₱{modalSummary.grossProfit?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Total Revenue - Total COGS</p>
                 </div>
-                <div className="p-4 bg-purple-50 dark:bg-gray-800 rounded-lg">
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Avg Order Value</p>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">₱{modalSummary.avgOrderValue.toFixed(2)}</p>
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-4 gap-4">
-                <div className="p-4 bg-green-50 dark:bg-gray-800 rounded-lg">
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Net Units Sold</p>
-                  <p className="text-2xl font-bold text-green-600 dark:text-green-400">{modalSummary.netUnitsSold.toLocaleString()}</p>
-                </div>
-                <div className="p-4 bg-red-50 dark:bg-gray-800 rounded-lg">
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Units Returned</p>
-                  <p className="text-2xl font-bold text-red-600 dark:text-red-400">{modalSummary.unitsReturned.toLocaleString()}</p>
-                </div>
-                <div className="p-4 bg-yellow-50 dark:bg-gray-800 rounded-lg">
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Sales Success Rate</p>
-                  <p className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">{modalSummary.salesSuccessRate.toFixed(1)}%</p>
-                </div>
-                <div className="p-4 bg-indigo-50 dark:bg-gray-800 rounded-lg">
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Peak Sales</p>
-                  <p className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">₱{modalSummary.peakSalesAmount.toLocaleString()}</p>
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-4 gap-4">
-                <div className="p-4 bg-blue-50 dark:bg-gray-800 rounded-lg">
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Sales per Day</p>
-                  <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{modalSummary.salesPerDay.toFixed(2)}</p>
-                </div>
-                <div className="p-4 bg-purple-50 dark:bg-gray-800 rounded-lg">
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Revenue per Day</p>
-                  <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">₱{modalSummary.revenuePerDay.toLocaleString()}</p>
-                </div>
-                <div className="p-4 bg-orange-50 dark:bg-gray-800 rounded-lg">
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Return Frequency</p>
-                  <p className="text-2xl font-bold text-orange-600 dark:text-orange-400">{modalSummary.returnFrequency.toFixed(1)}%</p>
-                </div>
-                <div className="p-4 bg-teal-50 dark:bg-gray-800 rounded-lg">
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Avg Return Value</p>
-                  <p className="text-2xl font-bold text-teal-600 dark:text-teal-400">₱{modalSummary.avgReturnValue.toLocaleString()}</p>
+                
+                <div className="p-6 bg-teal-50 dark:bg-gray-800 rounded-lg border border-teal-200 dark:border-teal-700">
+                  <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Total Quantity Sold</p>
+                  <p className="text-3xl font-bold text-gray-900 dark:text-gray-100">{modalSummary.totalQuantitySold?.toLocaleString() || 0}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Total units sold</p>
                 </div>
               </div>
 
               <div className="bg-white dark:bg-gray-900 p-6 rounded-lg border border-gray-200 dark:border-gray-700">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Sales Trend</h3>
-                  <div className="w-40">
-                    <Select
-                      size="sm"
-                      selectedKeys={[granularity]}
-                      onSelectionChange={(keys) => {
-                        const [k] = Array.from(keys) as ("daily"|"weekly"|"monthly")[];
-                        setGranularity(k);
-                      }}
-                      aria-label="Granularity"
-                    >
-                      <SelectItem key="daily">Daily</SelectItem>
-                      <SelectItem key="weekly">Weekly</SelectItem>
-                      <SelectItem key="monthly">Monthly</SelectItem>
-                    </Select>
-                  </div>
-                </div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Sales Trend</h3>
                 <div className="h-80">
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={extendedSalesData}>
@@ -405,78 +520,6 @@ export default function SalesPerformanceCard() {
               </div>
 
               <div className="bg-white dark:bg-gray-900 p-6 rounded-lg border border-gray-200 dark:border-gray-700">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Sales Report</h3>
-                <div className="overflow-x-auto">
-                  {granularity === 'daily' && (
-                    <table className="min-w-full text-sm">
-                      <thead>
-                        <tr className="text-left text-gray-600 dark:text-gray-400">
-                          <th className="py-2 pr-4">Date</th>
-                          <th className="py-2 pr-4">Sales</th>
-                          <th className="py-2 pr-4">Gross Profit</th>
-                          <th className="py-2 pr-4">Units Sold</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {rows.map((r, i) => (
-                          <tr key={i} className="border-t border-gray-200 dark:border-gray-800">
-                            <td className="py-2 pr-4">{r.date}</td>
-                            <td className="py-2 pr-4">₱{(r.sales ?? 0).toLocaleString()}</td>
-                            <td className="py-2 pr-4">₱{(r.grossProfit ?? 0).toLocaleString()}</td>
-                            <td className="py-2 pr-4">{r.unitsSold ?? 0}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  )}
-                  {granularity === 'weekly' && (
-                    <table className="min-w-full text-sm">
-                      <thead>
-                        <tr className="text-left text-gray-600 dark:text-gray-400">
-                          <th className="py-2 pr-4">Week</th>
-                          <th className="py-2 pr-4">Total Sales</th>
-                          <th className="py-2 pr-4">Gross Profit</th>
-                          <th className="py-2 pr-4">% Change vs Last Week</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {rows.map((r, i) => (
-                          <tr key={i} className="border-t border-gray-200 dark:border-gray-800">
-                            <td className="py-2 pr-4">{r.week}</td>
-                            <td className="py-2 pr-4">₱{(r.totalSales ?? 0).toLocaleString()}</td>
-                            <td className="py-2 pr-4">₱{(r.grossProfit ?? 0).toLocaleString()}</td>
-                            <td className="py-2 pr-4">{(r.changeVsLastWeekPct ?? 0).toFixed(1)}%</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  )}
-                  {granularity === 'monthly' && (
-                    <table className="min-w-full text-sm">
-                      <thead>
-                        <tr className="text-left text-gray-600 dark:text-gray-400">
-                          <th className="py-2 pr-4">Scope</th>
-                          <th className="py-2 pr-4">Total Sales</th>
-                          <th className="py-2 pr-4">Gross Profit</th>
-                          <th className="py-2 pr-4">Total Transactions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {rows.map((r, i) => (
-                          <tr key={i} className="border-t border-gray-200 dark:border-gray-800">
-                            <td className="py-2 pr-4">{r.scope}</td>
-                            <td className="py-2 pr-4">₱{(r.totalSales ?? 0).toLocaleString()}</td>
-                            <td className="py-2 pr-4">₱{(r.grossProfit ?? 0).toLocaleString()}</td>
-                            <td className="py-2 pr-4">{r.totalTransactions ?? 0}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  )}
-                </div>
-              </div>
-
-              <div className="bg-white dark:bg-gray-900 p-6 rounded-lg border border-gray-200 dark:border-gray-700">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Transaction Volume</h3>
                 <div className="h-64">
                   <ResponsiveContainer width="100%" height="100%">
@@ -493,11 +536,169 @@ export default function SalesPerformanceCard() {
                   </ResponsiveContainer>
                 </div>
               </div>
-            </div>
+                </div>
+              </Tab>
+
+              <Tab 
+                key="detailed-sales" 
+                title={
+                  <div className="flex items-center space-x-2">
+                    <FileText className="w-4 h-4" />
+                    <span>Detailed Sales</span>
+                  </div>
+                }
+              >
+                <div className="space-y-6 pt-4">
+                  <div className="flex items-center gap-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                    <div className="grid grid-cols-2 gap-4 flex-1">
+                      <Input
+                        type="datetime-local"
+                        label="From"
+                        labelPlacement="outside"
+                        value={reportDateFrom}
+                        onChange={(e) => setReportDateFrom(e.target.value)}
+                        size="sm"
+                      />
+                      <Input
+                        type="datetime-local"
+                        label="To"
+                        labelPlacement="outside"
+                        value={reportDateTo}
+                        onChange={(e) => setReportDateTo(e.target.value)}
+                        size="sm"
+                      />
+                    </div>
+                  </div>
+                  <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+                    <DataTable
+                      columns={[
+                        { key: "#", header: "#", sortable: false, renderCell: (_: any, i: number) => i + 1 },
+                        { key: "dateTime", header: "Date & Time", sortable: true, renderCell: (r: any) => new Date(r.dateTime).toLocaleString() },
+                        { key: "transactionNo", header: "Transaction No.", sortable: true },
+                        { key: "productName", header: "Product Name", sortable: true },
+                        { key: "barcode", header: "Barcode", sortable: true },
+                        { key: "quantity", header: "Quantity", sortable: true },
+                        { key: "unitPrice", header: "Unit Price (₱)", sortable: true, renderCell: (r: any) => `₱${r.unitPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` },
+                        { key: "total", header: "Total (₱)", sortable: true, renderCell: (r: any) => `₱${r.total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` },
+                      ] as any}
+                      data={detailedSalesRows}
+                      label="Sales Transactions"
+                      isLoading={!detailedSalesData && activeTab === "detailed-sales"}
+                    />
+                  </div>
+                </div>
+              </Tab>
+
+              <Tab 
+                key="profit-margin" 
+                title={
+                  <div className="flex items-center space-x-2">
+                    <TrendingUp className="w-4 h-4" />
+                    <span>Profit Margin</span>
+                  </div>
+                }
+              >
+                <div className="space-y-6 pt-4">
+                  <div className="flex items-center gap-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                    <div className="grid grid-cols-2 gap-4 flex-1">
+                      <Input
+                        type="datetime-local"
+                        label="From"
+                        labelPlacement="outside"
+                        value={reportDateFrom}
+                        onChange={(e) => setReportDateFrom(e.target.value)}
+                        size="sm"
+                      />
+                      <Input
+                        type="datetime-local"
+                        label="To"
+                        labelPlacement="outside"
+                        value={reportDateTo}
+                        onChange={(e) => setReportDateTo(e.target.value)}
+                        size="sm"
+                      />
+                    </div>
+                  </div>
+                  <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+                    <DataTable
+                      columns={[
+                        { key: "#", header: "#", sortable: false, renderCell: (_: any, i: number) => i + 1 },
+                        { key: "productName", header: "Product Name", sortable: true },
+                        { key: "costPerUnit", header: "Cost per Unit (₱)", sortable: true, renderCell: (r: any) => `₱${r.costPerUnit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` },
+                        { key: "sellingPrice", header: "Selling Price (₱)", sortable: true, renderCell: (r: any) => `₱${r.sellingPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` },
+                        { key: "grossProfitPerUnit", header: "Gross Profit per Unit (₱)", sortable: true, renderCell: (r: any) => `₱${r.grossProfitPerUnit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` },
+                        { key: "qtySold", header: "Qty Sold", sortable: true },
+                        { key: "totalProfit", header: "Total Profit (₱)", sortable: true, renderCell: (r: any) => `₱${r.totalProfit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` },
+                        { key: "profitMargin", header: "Profit Margin (%)", sortable: true, renderCell: (r: any) => `${r.profitMargin.toFixed(2)}%` },
+                      ] as any}
+                      data={profitMarginRows}
+                      label="Profit Margin"
+                      isLoading={!profitMarginData && activeTab === "profit-margin"}
+                    />
+                  </div>
+                </div>
+              </Tab>
+
+              <Tab 
+                key="returned-items" 
+                title={
+                  <div className="flex items-center space-x-2">
+                    <RotateCcw className="w-4 h-4" />
+                    <span>Returned Items</span>
+                  </div>
+                }
+              >
+                <div className="space-y-6 pt-4">
+                  <div className="flex items-center gap-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                    <div className="grid grid-cols-2 gap-4 flex-1">
+                      <Input
+                        type="datetime-local"
+                        label="From"
+                        labelPlacement="outside"
+                        value={reportDateFrom}
+                        onChange={(e) => setReportDateFrom(e.target.value)}
+                        size="sm"
+                      />
+                      <Input
+                        type="datetime-local"
+                        label="To"
+                        labelPlacement="outside"
+                        value={reportDateTo}
+                        onChange={(e) => setReportDateTo(e.target.value)}
+                        size="sm"
+                      />
+                    </div>
+                  </div>
+                  <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+                    <DataTable
+                      columns={[
+                        { key: "#", header: "#", sortable: false, renderCell: (_: any, i: number) => i + 1 },
+                        { key: "date", header: "Date", sortable: true, renderCell: (r: any) => new Date(r.date).toLocaleDateString() },
+                        { key: "transactionNo", header: "Transaction No.", sortable: true },
+                        { key: "productName", header: "Product Name", sortable: true },
+                        { key: "quantity", header: "Quantity", sortable: true },
+                        { key: "refundAmount", header: "Refund Amount (₱)", sortable: true, renderCell: (r: any) => `₱${r.refundAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` },
+                        { key: "reason", header: "Reason for Return", sortable: true, renderCell: (r: any) => r.reason || "-" },
+                        { key: "handledBy", header: "Handled By", sortable: true, renderCell: (r: any) => r.handledBy || "-" },
+                      ] as any}
+                      data={returnedItemsRows}
+                      label="Returned Items"
+                      isLoading={!returnedItemsData && activeTab === "returned-items"}
+                    />
+                  </div>
+                </div>
+              </Tab>
+            </Tabs>
           </ModalBody>
           <ModalFooter className="border-t dark:border-gray-700">
             <Button color="default" variant="light" onPress={() => setIsModalOpen(false)}>Close</Button>
-            <Button color="primary" startContent={<Download className="h-4 w-4" />} onPress={() => setIsExportOpen(true)}>Export Report</Button>
+            {activeTab === "overview" ? (
+              <Button color="primary" startContent={<Download className="h-4 w-4" />} onPress={() => setIsExportOpen(true)}>Export Report</Button>
+            ) : (
+              <Button color="primary" startContent={<Download className="h-4 w-4" />} onPress={exportCurrentTab}>
+                Export {activeTab === "detailed-sales" ? "Detailed Sales" : activeTab === "profit-margin" ? "Profit Margin" : "Returned Items"}
+              </Button>
+            )}
           </ModalFooter>
         </ModalContent>
       </Modal>
@@ -526,14 +727,14 @@ export default function SalesPerformanceCard() {
               </div>
               <div className="p-3 bg-blue-50 dark:bg-gray-800 rounded-lg">
                 <p className="text-xs text-gray-600 dark:text-gray-400">
-                  <strong>Export includes:</strong> {modalPeriod === '6months' ? '6 months' : '30 days'} of sales data with period sales, transactions, and average order values.
+                  <strong>Export includes:</strong> {modalPeriod === 'all' ? 'All time' : modalPeriod === 'monthly' ? 'Last 30 days' : modalPeriod === 'weekly' ? 'Last 7 days' : 'Today'} sales data with period sales, transactions, and average order values.
                 </p>
               </div>
             </div>
           </ModalBody>
           <ModalFooter>
             <Button variant="light" onPress={() => setIsExportOpen(false)}>Cancel</Button>
-            <Button color="primary" startContent={<Download className="h-4 w-4" />} onPress={exportSalesPerformance}>Export</Button>
+            <Button color="primary" startContent={<Download className="h-4 w-4" />} onPress={exportCurrentTab}>Export</Button>
           </ModalFooter>
         </ModalContent>
       </Modal>

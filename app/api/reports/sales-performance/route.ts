@@ -4,22 +4,48 @@ import { prisma } from "@/lib/prisma";
 export async function GET(req: NextRequest) {
   try {
     const searchParams = req.nextUrl.searchParams;
-    const period = searchParams.get("period") || "6months"; // 7days, 30days, 6months
+    const period = searchParams.get("period") || "monthly"; // daily, weekly, monthly, all (or legacy: 7days, 30days, 6months)
     const granularity = (searchParams.get("granularity") || "daily") as "daily" | "weekly" | "monthly";
 
     // Calculate date range based on period
     const now = new Date();
-    let startDate = new Date();
-    let groupBy = "month";
+    let startDate: Date | undefined = undefined;
+    let groupBy = "day";
     
-    if (period === "7days") {
+    if (period === "daily") {
+      // Today only
+      startDate = new Date();
+      startDate.setHours(0, 0, 0, 0);
+      groupBy = "day";
+    } else if (period === "weekly") {
+      // Last 7 days
+      startDate = new Date();
+      startDate.setDate(now.getDate() - 6);
+      startDate.setHours(0, 0, 0, 0);
+      groupBy = "day";
+    } else if (period === "monthly") {
+      // Last 30 days
+      startDate = new Date();
+      startDate.setDate(now.getDate() - 29);
+      startDate.setHours(0, 0, 0, 0);
+      groupBy = "day";
+    } else if (period === "all") {
+      // All time - no date filter
+      startDate = undefined;
+      groupBy = "month";
+    } else if (period === "7days") {
+      // Legacy support
+      startDate = new Date();
       startDate.setDate(now.getDate() - 6);
       groupBy = "day";
     } else if (period === "30days") {
+      // Legacy support
+      startDate = new Date();
       startDate.setDate(now.getDate() - 29);
       groupBy = "day";
     } else {
-      // 6 months
+      // Legacy 6months or default
+      startDate = new Date();
       startDate.setMonth(now.getMonth() - 5);
       startDate.setDate(1);
       groupBy = "month";
@@ -28,10 +54,12 @@ export async function GET(req: NextRequest) {
     // Get all sales within date range
     const sales = await prisma.sale.findMany({
       where: {
-        createdAt: {
-          gte: startDate,
-          lte: now,
-        },
+        ...(startDate && {
+          createdAt: {
+            gte: startDate,
+            lte: now,
+          },
+        }),
       },
       include: {
         product: true,
@@ -108,22 +136,28 @@ export async function GET(req: NextRequest) {
       }));
     } else {
       // For other periods, use the original logic
-      chartData = Object.entries(groupedData).map(([key, value]) => {
-        let label = "";
-        if (groupBy === "day") {
-          label = value.date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-        } else {
-          // For months
-          label = value.date.toLocaleDateString("en-US", { month: "short" });
-        }
-        
-        return {
-          label,
-          sales: Math.round(value.sales * 100) / 100,
-          transactions: value.transactions,
-          avgOrder: value.transactions > 0 ? Math.round((value.sales / value.transactions) * 100) / 100 : 0,
-        };
-      });
+      chartData = Object.entries(groupedData)
+        .sort(([a], [b]) => a.localeCompare(b)) // Sort by date key
+        .map(([key, value]) => {
+          let label = "";
+          if (groupBy === "day") {
+            label = value.date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+          } else {
+            // For months - include year for "all time"
+            if (period === "all") {
+              label = value.date.toLocaleDateString("en-US", { month: "short", year: "numeric" });
+            } else {
+              label = value.date.toLocaleDateString("en-US", { month: "short" });
+            }
+          }
+          
+          return {
+            label,
+            sales: Math.round(value.sales * 100) / 100,
+            transactions: value.transactions,
+            avgOrder: value.transactions > 0 ? Math.round((value.sales / value.transactions) * 100) / 100 : 0,
+          };
+        });
     }
 
     // Build tabular rows based on requested granularity
@@ -235,6 +269,18 @@ export async function GET(req: NextRequest) {
     // Net Sales = Gross Sales - Returns (actual revenue earned)
     const netSales = grossSales - returnsAmount;
     
+    // Calculate Total Revenue (unit price x quantity sold) - same as netSales
+    const totalRevenue = netSales;
+    
+    // Calculate Total Cost of Goods Sold (original price x quantity sold)
+    const totalCOGS = salesWithRevenue.reduce((sum, sale) => {
+      const unitCost = parseNumber(sale.product?.unitCost);
+      return sum + (unitCost * sale.quantity);
+    }, 0);
+    
+    // Calculate Gross Profit (Total Revenue - Total COGS)
+    const grossProfit = totalRevenue - totalCOGS;
+    
     // Transaction counts (business perspective)
     const salesTransactions = salesWithRevenue.length; // Successful sales
     const returnTransactions = voidsWithRevenue.length; // Returns/voids
@@ -289,7 +335,16 @@ export async function GET(req: NextRequest) {
     const revenuePerSale = salesTransactions > 0 ? netSales / salesTransactions : 0;
     
     // Business efficiency metrics (based on actual period days)
-    const totalDays = Math.max(1, Math.ceil((now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)));
+    // For "all time", calculate days from first sale, otherwise use period
+    let totalDays = 1;
+    if (startDate) {
+      totalDays = Math.max(1, Math.ceil((now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)));
+    } else if (sales.length > 0) {
+      // For "all time", use first sale date to calculate total days
+      const firstSale = sales[0];
+      const firstSaleDate = new Date(firstSale.createdAt);
+      totalDays = Math.max(1, Math.ceil((now.getTime() - firstSaleDate.getTime()) / (1000 * 60 * 60 * 24)));
+    }
     const salesPerDay = salesTransactions / totalDays;
     const revenuePerDay = netSales / totalDays;
     
@@ -302,18 +357,22 @@ export async function GET(req: NextRequest) {
     const avgReturnValue = returnTransactions > 0 ? returnsAmount / returnTransactions : 0;
 
     // Calculate growth (compare to previous period)
-    const previousPeriodStart = new Date(startDate);
-    const periodLength = now.getTime() - startDate.getTime();
-    previousPeriodStart.setTime(startDate.getTime() - periodLength);
+    // For "all time", skip growth calculation as there's no previous period
+    let previousSales: any[] = [];
+    if (startDate) {
+      const previousPeriodStart = new Date(startDate);
+      const periodLength = now.getTime() - startDate.getTime();
+      previousPeriodStart.setTime(startDate.getTime() - periodLength);
 
-    const previousSales = await prisma.sale.findMany({
-      where: {
-        createdAt: {
-          gte: previousPeriodStart,
-          lt: startDate,
+      previousSales = await prisma.sale.findMany({
+        where: {
+          createdAt: {
+            gte: previousPeriodStart,
+            lt: startDate,
+          },
         },
-      },
-    });
+      });
+    }
 
     // Separate previous sales and voids
     const previousSalesOnly = previousSales.filter(sale => sale.quantity > 0);
@@ -380,9 +439,15 @@ export async function GET(req: NextRequest) {
         salesGrowth: Math.round(salesGrowth * 10) / 10,
         transactionsGrowth: Math.round(transactionsGrowth * 10) / 10,
         
+        // New Summary Metrics
+        totalRevenue: Math.round(totalRevenue * 100) / 100,   // Total Revenue (unit price x quantity sold)
+        totalCOGS: Math.round(totalCOGS * 100) / 100,          // Total Cost of Goods Sold (original price x quantity sold)
+        grossProfit: Math.round(grossProfit * 100) / 100,      // Gross Profit (Total Revenue - Total COGS)
+        totalQuantitySold: netUnitsSold,                      // Total Quantity Sold
+        
         // Period Information
         period,
-        startDate: startDate.toISOString(),
+        startDate: startDate ? startDate.toISOString() : null,
         endDate: now.toISOString(),
       },
     });

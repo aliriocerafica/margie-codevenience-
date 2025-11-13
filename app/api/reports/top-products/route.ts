@@ -39,7 +39,11 @@ export async function GET(req: NextRequest) {
         }),
       },
       include: {
-        product: true,
+        product: {
+          include: {
+            category: true,
+          },
+        },
       },
     });
 
@@ -47,18 +51,31 @@ export async function GET(req: NextRequest) {
     const productStats: Record<string, {
       productId: string;
       name: string;
+      category: string;
+      barcode: string | null;
+      price: string;
+      unitCost: string | null;
       sold: number;
       revenue: number;
     }> = {};
 
     sales.forEach((sale) => {
       const productId = sale.productId;
-      const productName = sale.product?.name || "Unknown Product";
+      const product = sale.product;
+      const productName = product?.name || "Unknown Product";
+      const categoryName = product?.category?.name || "Uncategorized";
+      const barcode = product?.barcode || null;
+      const price = product?.price || "0";
+      const unitCost = product?.unitCost || null;
 
       if (!productStats[productId]) {
         productStats[productId] = {
           productId,
           name: productName,
+          category: categoryName,
+          barcode,
+          price,
+          unitCost,
           sold: 0,
           revenue: 0,
         };
@@ -72,6 +89,9 @@ export async function GET(req: NextRequest) {
     const sortedProducts = Object.values(productStats)
       .sort((a, b) => b.sold - a.sold)
       .slice(0, limit);
+
+    // Calculate total revenue for percentage calculations
+    const totalRevenue = sortedProducts.reduce((sum, p) => sum + p.revenue, 0);
 
     // Calculate growth trends by comparing to previous period
     const productsWithTrends = await Promise.all(
@@ -111,10 +131,21 @@ export async function GET(req: NextRequest) {
           trend = "+100%";
         }
 
+        // Parse price and unitCost to numbers for calculations
+        const sellingPrice = parseFloat(product.price) || 0;
+        const costPrice = product.unitCost ? parseFloat(product.unitCost) : 0;
+        const profitPerUnit = sellingPrice - costPrice;
+        const totalProfit = profitPerUnit * product.sold;
+        const percentageOfTotalSales = totalRevenue > 0 ? (product.revenue / totalRevenue) * 100 : 0;
+
         return {
           ...product,
           revenue: Math.round(product.revenue * 100) / 100,
           trend,
+          sellingPrice,
+          profitPerUnit: Math.round(profitPerUnit * 100) / 100,
+          totalProfit: Math.round(totalProfit * 100) / 100,
+          percentageOfTotalSales: Math.round(percentageOfTotalSales * 100) / 100,
         };
       })
     );
