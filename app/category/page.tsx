@@ -18,7 +18,12 @@ const Category = () => {
     const [useBackendData] = useState(true);
     const { data, error, isLoading, mutate } = useSWR(
         useBackendData ? `/api/category` : null, 
-        fetcher
+        fetcher,
+        {
+            refreshInterval: 5000,
+            revalidateOnFocus: true,
+            revalidateOnReconnect: true,
+        }
     );
     const [editing, setEditing] = useState<{ id: string; name: string } | null>(null);
     const [saving, setSaving] = useState(false);

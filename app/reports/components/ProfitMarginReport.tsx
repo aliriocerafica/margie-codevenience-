@@ -21,7 +21,15 @@ export default function ProfitMarginReport() {
     return `/api/reports/profit-margin?${params.toString()}`;
   }, [dateFrom, dateTo]);
 
-  const { data, error, isLoading } = useSWR(isModalOpen ? query : null, fetcher);
+  const { data, error, isLoading } = useSWR(
+    isModalOpen ? query : null, 
+    fetcher,
+    {
+      refreshInterval: 5000,
+      revalidateOnFocus: true,
+      revalidateOnReconnect: true,
+    }
+  );
   const rows = data?.rows || [];
 
   const columns = [

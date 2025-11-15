@@ -16,7 +16,15 @@ export default function TopProductsCard() {
   const [period, setPeriod] = useState<string>("monthly");
 
   // Fetch data
-  const { data, error, isLoading } = useSWR(`/api/reports/top-products?period=${period}&limit=10`, fetcher);
+  const { data, error, isLoading } = useSWR(
+    `/api/reports/top-products?period=${period}&limit=10`, 
+    fetcher,
+    {
+      refreshInterval: 5000,
+      revalidateOnFocus: true,
+      revalidateOnReconnect: true,
+    }
+  );
 
   const extendedTopProducts = data?.products || [];
   const topFiveProducts = extendedTopProducts.slice(0, 5);

@@ -69,17 +69,82 @@ export async function GET(req: NextRequest) {
       },
     });
 
-    // Separate sales and voids
+    // Separate sales, voids, and returns
     const salesOnly = sales.filter(sale => sale.quantity > 0);
-    const voidsOnly = sales.filter(sale => sale.quantity < 0);
+    const negativeSales = sales.filter(sale => sale.quantity < 0);
     
-    // Use actual sale data with stored prices and amounts
-    const salesWithRevenue = salesOnly.map((sale) => ({
-      ...sale,
-      revenue: sale.totalAmount,
-      quantity: sale.quantity,
-    }));
+    // Separate voids (refId starts with "void-") from returns (refId starts with "return-")
+    const voidsOnly = negativeSales.filter(sale => sale.refId?.startsWith("void-"));
+    const returnsOnly = negativeSales.filter(sale => sale.refId?.startsWith("return-"));
+    
+    // Identify voided sales by checking if there's a void transaction that matches
+    // A sale is considered voided if there's a void StockMovement or void Sale for the same product
+    // within a reasonable time window (e.g., same day or within 24 hours)
+    const stockMovement = (prisma as any).stockMovement;
+    let voidedSaleIds = new Set<string>();
+    
+    if (stockMovement) {
+      const voidMovements = await stockMovement.findMany({
+        where: {
+          type: "void",
+          ...(startDate && {
+            createdAt: {
+              gte: startDate,
+              lte: now,
+            },
+          }),
+        },
+        select: {
+          refId: true,
+          productId: true,
+          createdAt: true,
+        },
+      });
+      
+      // Match void movements to sales by product and time proximity
+      for (const voidMov of voidMovements) {
+        const matchingSale = salesOnly.find(sale => 
+          sale.productId === voidMov.productId &&
+          Math.abs(new Date(sale.createdAt).getTime() - new Date(voidMov.createdAt).getTime()) < 24 * 60 * 60 * 1000 // Within 24 hours
+        );
+        if (matchingSale) {
+          voidedSaleIds.add(matchingSale.id);
+        }
+      }
+    }
+    
+    // Also check void sales directly - if a sale's refId matches a void's pattern
+    voidsOnly.forEach(voidSale => {
+      // Try to find the original sale that was voided
+      // Voids are created with refId like "void-{timestamp}", but we need to match by product and time
+      const matchingSale = salesOnly.find(sale =>
+        sale.productId === voidSale.productId &&
+        Math.abs(new Date(sale.createdAt).getTime() - new Date(voidSale.createdAt).getTime()) < 24 * 60 * 60 * 1000 &&
+        sale.refId && voidSale.refId && voidSale.refId.includes(sale.refId)
+      );
+      if (matchingSale) {
+        voidedSaleIds.add(matchingSale.id);
+      }
+    });
+    
+    // Filter out voided sales from salesWithRevenue
+    const salesWithRevenue = salesOnly
+      .filter(sale => !voidedSaleIds.has(sale.id))
+      .map((sale) => ({
+        ...sale,
+        revenue: sale.totalAmount,
+        quantity: sale.quantity,
+      }));
 
+    // Only count returns (not voids) in returnsWithRevenue
+    // Voids cancel out the original sale, so they shouldn't be counted separately
+    const returnsWithRevenue = returnsOnly.map((returnSale) => ({
+      ...returnSale,
+      revenue: Math.abs(returnSale.totalAmount), // Make positive for display
+      quantity: Math.abs(returnSale.quantity), // Make positive for display
+    }));
+    
+    // Voids are kept for calculating net sales but not counted as separate transactions
     const voidsWithRevenue = voidsOnly.map((voidSale) => ({
       ...voidSale,
       revenue: Math.abs(voidSale.totalAmount), // Make positive for display
@@ -262,12 +327,14 @@ export async function GET(req: NextRequest) {
     }
 
     // Calculate totals following proper business accounting
-    // Gross Sales = Total sales before any voids/returns (business volume)
+    // Gross Sales = Total sales before any voids/returns (business volume) - excluding voided sales
     const grossSales = salesWithRevenue.reduce((sum, sale) => sum + sale.revenue, 0);
-    // Returns/Voids = Total amount returned/voided (negative impact)
-    const returnsAmount = voidsWithRevenue.reduce((sum, voidSale) => sum + voidSale.revenue, 0);
-    // Net Sales = Gross Sales - Returns (actual revenue earned)
-    const netSales = grossSales - returnsAmount;
+    // Returns = Total amount returned (negative impact)
+    const returnsAmount = returnsWithRevenue.reduce((sum, returnSale) => sum + returnSale.revenue, 0);
+    // Voids = Total amount voided (these cancel out original sales, so we subtract them)
+    const voidsAmount = voidsWithRevenue.reduce((sum, voidSale) => sum + voidSale.revenue, 0);
+    // Net Sales = Gross Sales - Returns - Voids (actual revenue earned)
+    const netSales = grossSales - returnsAmount - voidsAmount;
     
     // Calculate Total Revenue (unit price x quantity sold) - same as netSales
     const totalRevenue = netSales;
@@ -282,9 +349,9 @@ export async function GET(req: NextRequest) {
     const grossProfit = totalRevenue - totalCOGS;
     
     // Transaction counts (business perspective)
-    const salesTransactions = salesWithRevenue.length; // Successful sales
-    const returnTransactions = voidsWithRevenue.length; // Returns/voids
-    const totalTransactions = salesTransactions + returnTransactions; // All transactions
+    const salesTransactions = salesWithRevenue.length; // Successful sales (excluding voided ones)
+    const returnTransactions = returnsWithRevenue.length; // Returns only (not voids - voids cancel out original sales)
+    const totalTransactions = salesTransactions + returnTransactions; // All transactions (voided sales are excluded)
     
     // Business metrics
     const avgOrderValue = salesTransactions > 0 ? netSales / salesTransactions : 0;
@@ -293,8 +360,10 @@ export async function GET(req: NextRequest) {
     // Quantity metrics (business perspective)
     // Units Sold = Total units sold before returns
     const unitsSold = salesWithRevenue.reduce((sum, sale) => sum + sale.quantity, 0);
-    // Units Returned = Total units returned/voided
-    const unitsReturned = voidsWithRevenue.reduce((sum, voidSale) => sum + voidSale.quantity, 0);
+    // Units Returned = Total units returned (not including voids - voids cancel out original sales)
+    const unitsReturned = returnsWithRevenue.reduce((sum, returnSale) => sum + returnSale.quantity, 0);
+    // Units Voided = Total units voided (for reference, but these cancel out original sales)
+    const unitsVoided = voidsWithRevenue.reduce((sum, voidSale) => sum + voidSale.quantity, 0);
     // Net Units Sold = Units sold minus returns (actual units kept by customers)
     const netUnitsSold = unitsSold - unitsReturned;
     
@@ -310,7 +379,15 @@ export async function GET(req: NextRequest) {
       dailySalesMap.get(dateKey)!.amount += sale.revenue;
     });
     
-    // Subtract returns per day to get net sales per day
+    // Subtract returns and voids per day to get net sales per day
+    returnsWithRevenue.forEach(returnSale => {
+      const dateKey = returnSale.createdAt.toDateString();
+      if (!dailySalesMap.has(dateKey)) {
+        dailySalesMap.set(dateKey, { amount: 0, date: returnSale.createdAt });
+      }
+      dailySalesMap.get(dateKey)!.amount -= returnSale.revenue;
+    });
+    
     voidsWithRevenue.forEach(voidSale => {
       const dateKey = voidSale.createdAt.toDateString();
       if (!dailySalesMap.has(dateKey)) {
@@ -355,6 +432,9 @@ export async function GET(req: NextRequest) {
     // Customer behavior metrics
     const returnFrequency = totalTransactions > 0 ? (returnTransactions / totalTransactions) * 100 : 0;
     const avgReturnValue = returnTransactions > 0 ? returnsAmount / returnTransactions : 0;
+    
+    // Void metrics (for reference)
+    const voidFrequency = salesTransactions > 0 ? (voidsWithRevenue.length / (salesTransactions + voidsWithRevenue.length)) * 100 : 0;
 
     // Calculate growth (compare to previous period)
     // For "all time", skip growth calculation as there's no previous period
@@ -374,13 +454,18 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    // Separate previous sales and voids
+    // Separate previous sales, voids, and returns
     const previousSalesOnly = previousSales.filter(sale => sale.quantity > 0);
-    const previousVoidsOnly = previousSales.filter(sale => sale.quantity < 0);
+    const previousNegativeSales = previousSales.filter(sale => sale.quantity < 0);
+    const previousVoidsOnly = previousNegativeSales.filter(sale => sale.refId?.startsWith("void-"));
+    const previousReturnsOnly = previousNegativeSales.filter(sale => sale.refId?.startsWith("return-"));
     
+    // Note: For previous period, we don't need to identify voided sales for transaction count
+    // since we're only comparing net sales amounts
     const previousTotalSales = previousSalesOnly.reduce((sum, sale) => sum + sale.totalAmount, 0);
+    const previousReturnsAmount = previousReturnsOnly.reduce((sum, sale) => sum + Math.abs(sale.totalAmount), 0);
     const previousVoidAmount = previousVoidsOnly.reduce((sum, sale) => sum + Math.abs(sale.totalAmount), 0);
-    const previousNetSales = previousTotalSales - previousVoidAmount;
+    const previousNetSales = previousTotalSales - previousReturnsAmount - previousVoidAmount;
 
     // Calculate growth based on net sales (actual revenue)
     const salesGrowth = (previousNetSales > 0 && netSales > 0) 
@@ -402,9 +487,10 @@ export async function GET(req: NextRequest) {
       rows,
       summary: {
         // Core Financial Metrics (Business Standard)
-        grossSales: Math.round(grossSales * 100) / 100,        // Total sales before returns
-        returnsAmount: Math.round(returnsAmount * 100) / 100,  // Total returns/voids
-        netSales: Math.round(netSales * 100) / 100,           // Actual revenue earned
+        grossSales: Math.round(grossSales * 100) / 100,        // Total sales before returns (excluding voided sales)
+        returnsAmount: Math.round(returnsAmount * 100) / 100,  // Total returns (not including voids)
+        voidsAmount: Math.round(voidsAmount * 100) / 100,      // Total voids (for reference)
+        netSales: Math.round(netSales * 100) / 100,           // Actual revenue earned (gross - returns - voids)
         returnRate: Math.round(returnRate * 10) / 10,          // Return rate percentage
         
         // Transaction Metrics (Business Perspective)
@@ -440,10 +526,10 @@ export async function GET(req: NextRequest) {
         transactionsGrowth: Math.round(transactionsGrowth * 10) / 10,
         
         // New Summary Metrics
-        totalRevenue: Math.round(totalRevenue * 100) / 100,   // Total Revenue (unit price x quantity sold)
+        totalRevenue: Math.round(totalRevenue * 100) / 100,   // Total Revenue (unit price x quantity sold) = netSales
         totalCOGS: Math.round(totalCOGS * 100) / 100,          // Total Cost of Goods Sold (original price x quantity sold)
         grossProfit: Math.round(grossProfit * 100) / 100,      // Gross Profit (Total Revenue - Total COGS)
-        totalQuantitySold: netUnitsSold,                      // Total Quantity Sold
+        totalQuantitySold: unitsSold,                         // Total Quantity Sold (gross units, before returns)
         
         // Period Information
         period,

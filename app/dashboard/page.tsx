@@ -30,15 +30,36 @@ export default function DashboardPage() {
 	// Get low stock threshold from NotificationContext
 	const { lowStockThreshold } = useNotifications();
 
-	const { data: statsData, error: statsError, isLoading: statsLoading } = useSWR<{ products: number; categories: number; users: number; todaySales: number; salesGrowth: number }>("/api/dashboard", fetcher);
+	const { data: statsData, error: statsError, isLoading: statsLoading } = useSWR<{ products: number; categories: number; users: number; todaySales: number; salesGrowth: number }>(
+		"/api/dashboard", 
+		fetcher,
+		{
+			refreshInterval: 5000,
+			revalidateOnFocus: true,
+			revalidateOnReconnect: true,
+		}
+	);
 	
 	// Fetch recent products
-	const { data: recentProductsData, error: productsError, isLoading: productsLoading } = useSWR<any[]>("/api/product", fetcher);
+	const { data: recentProductsData, error: productsError, isLoading: productsLoading } = useSWR<any[]>(
+		"/api/product", 
+		fetcher,
+		{
+			refreshInterval: 5000,
+			revalidateOnFocus: true,
+			revalidateOnReconnect: true,
+		}
+	);
 	
 	// Fetch low stock products using the stock-alerts API
 	const { data: stockAlertsData, error: stockAlertsError, isLoading: stockAlertsLoading } = useSWR<any>(
 		lowStockThreshold ? `/api/products/stock-alerts?threshold=${lowStockThreshold}` : null,
-		fetcher
+		fetcher,
+		{
+			refreshInterval: 5000,
+			revalidateOnFocus: true,
+			revalidateOnReconnect: true,
+		}
 	);
 
     // Removed global click navigation that interfered with in-page links

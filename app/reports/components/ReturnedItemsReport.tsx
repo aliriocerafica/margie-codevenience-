@@ -21,7 +21,15 @@ export default function ReturnedItemsReport() {
     return `/api/reports/returned-items?${params.toString()}`;
   }, [dateFrom, dateTo]);
 
-  const { data, error, isLoading } = useSWR(isModalOpen ? query : null, fetcher);
+  const { data, error, isLoading } = useSWR(
+    isModalOpen ? query : null, 
+    fetcher,
+    {
+      refreshInterval: 5000,
+      revalidateOnFocus: true,
+      revalidateOnReconnect: true,
+    }
+  );
   const rows = data?.rows || [];
 
   const columns = [

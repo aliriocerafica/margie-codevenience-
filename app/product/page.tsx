@@ -30,7 +30,12 @@ const ProductWithSearchParams = () => {
     const [isProcessingScan, setIsProcessingScan] = useState(false);
     const { data, error, isLoading, mutate } = useSWR(
         useBackendData ? `/api/product` : null,
-        fetcher
+        fetcher,
+        {
+            refreshInterval: 5000,
+            revalidateOnFocus: true,
+            revalidateOnReconnect: true,
+        }
     );
 
     // Enable page highlighting for search results

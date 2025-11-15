@@ -45,6 +45,7 @@ interface DataTableProps {
     error?: any;
     customFilters?: React.ReactNode; // extra filter controls area
     defaultSort?: { key: string; direction: 'asc' | 'desc' }; // default sorting
+    defaultVisibleColumns?: string[]; // columns to show by default
 }
 
 const DataTable = ({
@@ -60,26 +61,38 @@ const DataTable = ({
     error = null,
     customFilters,
     defaultSort,
+    defaultVisibleColumns,
 }: DataTableProps) => {
     const [searchTerm, setSearchTerm] = useState("");
     const [currentPage, setCurrentPage] = useState(1);
     const [rowsPerPage] = useState(10);
-    const [visibleColumns, setVisibleColumns] = useState(
-        columns.map((col) => col.key)
-    );
+    // Ensure actions column is always included in visible columns
+    const allColumnKeys = columns.map((col) => col.key);
+    const hasActionsColumn = allColumnKeys.includes("actions");
+    // Use defaultVisibleColumns if provided, otherwise show all columns
+    const initialVisibleColumns = defaultVisibleColumns 
+        ? [...defaultVisibleColumns, ...(hasActionsColumn && !defaultVisibleColumns.includes("actions") ? ["actions"] : [])]
+        : allColumnKeys;
+    const [visibleColumns, setVisibleColumns] = useState(initialVisibleColumns);
     const [statusFilter, setStatusFilter] = useState("all");
     const [sortKey, setSortKey] = useState(defaultSort?.key || "");
     const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>(defaultSort?.direction || 'asc');
 
     // handle show/hide columns
     const handleColumnFilterChange = (selectedKeys: any) => {
-        setVisibleColumns(Array.from(selectedKeys));
+        const selected = Array.from(selectedKeys) as string[];
+        // Always include actions column if it exists
+        if (hasActionsColumn && !selected.includes("actions")) {
+            selected.push("actions");
+        }
+        setVisibleColumns(selected);
     };
 
     // handle status filter
     const handleStatusFilterChange = (selectedKeys: any) => {
         const selectedValue = selectedKeys.currentKey;
         setStatusFilter(selectedValue);
+        setCurrentPage(1); // Reset to first page when filter changes
     };
 
     // handle sorting
@@ -231,7 +244,10 @@ const DataTable = ({
                             type="search"
                             placeholder="Search..."
                             value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
+                            onChange={(e) => {
+                                setSearchTerm(e.target.value);
+                                setCurrentPage(1); // Reset to first page when search changes
+                            }}
                             className="w-[180px] sm:w-64"
                             classNames={{ inputWrapper: "h-12", input: "text-sm" }}
                         />
@@ -309,7 +325,10 @@ const DataTable = ({
                             type="search"
                             placeholder="Search..."
                             value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
+                            onChange={(e) => {
+                                setSearchTerm(e.target.value);
+                                setCurrentPage(1); // Reset to first page when search changes
+                            }}
                             className="w-full"
                             classNames={{ inputWrapper: "h-12", input: "text-sm" }}
                         />
@@ -384,7 +403,14 @@ const DataTable = ({
 
                 {/* Table */}
                 <div className="overflow-x-auto rounded-lg">
-                    <Table aria-label={label}>
+                    <Table 
+                        aria-label={label}
+                        classNames={{
+                            wrapper: "min-w-full",
+                            th: "text-xs px-2 py-2",
+                            td: "text-xs px-2 py-2",
+                        }}
+                    >
                         <TableHeader>
                             {columns
                                 .filter((col) => visibleColumns.includes(col.key))
@@ -394,14 +420,14 @@ const DataTable = ({
                                             <Button
                                                 variant="light"
                                                 size="sm"
-                                                className="h-auto p-0 font-semibold text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
+                                                className="h-auto p-0 font-semibold text-xs text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
                                                 onPress={() => handleSort(column.key)}
                                                 startContent={getSortIcon(column.key)}
                                             >
                                                 {column.header}
                                             </Button>
                                         ) : (
-                                            <span className="font-semibold text-gray-700 dark:text-gray-300">
+                                            <span className="font-semibold text-xs text-gray-700 dark:text-gray-300">
                                                 {column.header}
                                             </span>
                                         )}

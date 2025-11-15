@@ -16,7 +16,15 @@ export default function RevenueTrendsCard() {
   const [period, setPeriod] = useState<string>("6weeks");
 
   // Fetch data
-  const { data, error, isLoading } = useSWR(`/api/reports/revenue-trends?period=${period}`, fetcher);
+  const { data, error, isLoading } = useSWR(
+    `/api/reports/revenue-trends?period=${period}`, 
+    fetcher,
+    {
+      refreshInterval: 5000,
+      revalidateOnFocus: true,
+      revalidateOnReconnect: true,
+    }
+  );
 
   const extendedRevenueData = data?.chartData || [];
   const summary = data?.summary || {

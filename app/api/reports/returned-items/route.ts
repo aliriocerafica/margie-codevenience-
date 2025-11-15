@@ -9,6 +9,7 @@ export async function GET(req: NextRequest) {
 
     const where: any = {
       quantity: { lt: 0 }, // Only negative quantities (returns/refunds)
+      refId: { not: { startsWith: "void-" } }, // Exclude void transactions (those are in separate report)
     };
 
     if (dateFrom || dateTo) {
@@ -38,10 +39,10 @@ export async function GET(req: NextRequest) {
       },
     });
 
-    // Also check StockMovement for void/refund types with reasons
+    // Also check StockMovement for refund types with reasons (exclude void - those are in separate report)
     const stockMovements = await (prisma as any).stockMovement.findMany({
       where: {
-        type: { in: ["void", "refund"] },
+        type: "refund", // Only refund, not void
         ...(dateFrom || dateTo ? {
           createdAt: {
             ...(dateFrom ? { gte: new Date(dateFrom) } : {}),
@@ -70,11 +71,13 @@ export async function GET(req: NextRequest) {
     });
 
     // Combine data from both sources
+    // Use refId as the key since both Sale and StockMovement share the same refId for returns
     const returnMap = new Map<string, any>();
 
-    // Process returns from Sale model
+    // Process returns from Sale model first (has refund amount)
     returns.forEach((ret) => {
-      const key = `${ret.id}-${ret.createdAt.toISOString()}`;
+      // Use refId as key to match with StockMovement
+      const key = ret.refId || ret.id;
       returnMap.set(key, {
         date: ret.createdAt,
         transactionNo: ret.refId || ret.id,
@@ -87,21 +90,25 @@ export async function GET(req: NextRequest) {
     });
 
     // Process returns from StockMovement model (for reasons)
+    // Match by refId to combine with existing Sale records
     stockMovements.forEach((movement: any) => {
-      const key = `${movement.refId || movement.id}-${movement.createdAt.toISOString()}`;
+      const key = movement.refId || movement.id;
       const existing = returnMap.get(key);
       if (existing) {
+        // Update existing entry with reason from StockMovement
         existing.reason = movement.reason || null;
         if (!existing.handledBy) {
           existing.handledBy = movement.userId || null;
         }
       } else {
+        // Only create new entry if no matching Sale record exists
+        // This handles edge cases where StockMovement exists but Sale doesn't
         returnMap.set(key, {
           date: movement.createdAt,
           transactionNo: movement.refId || movement.id,
           productName: movement.product?.name || "Unknown Product",
           quantity: Math.abs(movement.quantity),
-          refundAmount: 0, // StockMovement doesn't have amount, will need to calculate
+          refundAmount: 0, // StockMovement doesn't have amount
           reason: movement.reason || null,
           handledBy: movement.userId || null,
         });

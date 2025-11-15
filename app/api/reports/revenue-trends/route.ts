@@ -27,12 +27,15 @@ export async function GET(req: NextRequest) {
     }
 
     // Get all sales within date range
+    // Exclude returns (negative quantities) and void transactions to show actual sales revenue
     const sales = await prisma.sale.findMany({
       where: {
         createdAt: {
           gte: startDate,
           lte: now,
         },
+        quantity: { gt: 0 }, // Only positive quantities (actual sales, not returns)
+        refId: { not: { startsWith: "void-" } }, // Exclude void transactions
       },
       include: {
         product: true,
@@ -42,11 +45,75 @@ export async function GET(req: NextRequest) {
       },
     });
 
-    // Use actual sale data with stored amounts
-    const salesWithRevenue = sales.map((sale) => ({
-      ...sale,
-      revenue: sale.totalAmount,
-    }));
+    // Identify voided sales by checking if there's a void transaction that matches
+    // A sale is considered voided if there's a void StockMovement or void Sale for the same product
+    // within a reasonable time window (e.g., same day or within 24 hours)
+    const stockMovement = (prisma as any).stockMovement;
+    let voidedSaleIds = new Set<string>();
+    
+    if (stockMovement) {
+      const voidMovements = await stockMovement.findMany({
+        where: {
+          type: "void",
+          ...(startDate && {
+            createdAt: {
+              gte: startDate,
+              lte: now,
+            },
+          }),
+        },
+        select: {
+          refId: true,
+          productId: true,
+          createdAt: true,
+        },
+      });
+      
+      // Match void movements to sales by product and time proximity
+      for (const voidMov of voidMovements) {
+        const matchingSale = sales.find(sale => 
+          sale.productId === voidMov.productId &&
+          Math.abs(new Date(sale.createdAt).getTime() - new Date(voidMov.createdAt).getTime()) < 24 * 60 * 60 * 1000 // Within 24 hours
+        );
+        if (matchingSale) {
+          voidedSaleIds.add(matchingSale.id);
+        }
+      }
+    }
+    
+    // Also check void sales directly - if a sale's refId matches a void's pattern
+    const voidSales = await prisma.sale.findMany({
+      where: {
+        createdAt: {
+          gte: startDate,
+          lte: now,
+        },
+        quantity: { lt: 0 },
+        refId: { startsWith: "void-" },
+      },
+    });
+    
+    voidSales.forEach(voidSale => {
+      // Try to find the original sale that was voided
+      // Voids are created with refId like "void-{timestamp}", but we need to match by product and time
+      const matchingSale = sales.find(sale =>
+        sale.productId === voidSale.productId &&
+        Math.abs(new Date(sale.createdAt).getTime() - new Date(voidSale.createdAt).getTime()) < 24 * 60 * 60 * 1000 &&
+        sale.refId && voidSale.refId && voidSale.refId.includes(sale.refId)
+      );
+      if (matchingSale) {
+        voidedSaleIds.add(matchingSale.id);
+      }
+    });
+    
+    // Filter out voided sales from salesWithRevenue
+    // Use actual sale data with stored amounts (all should be positive now, excluding voided ones)
+    const salesWithRevenue = sales
+      .filter(sale => !voidedSaleIds.has(sale.id))
+      .map((sale) => ({
+        ...sale,
+        revenue: sale.totalAmount,
+      }));
 
     // Helper function to get week number
     const getWeekNumber = (date: Date): number => {
@@ -63,9 +130,19 @@ export async function GET(req: NextRequest) {
       const date = new Date(sale.createdAt);
       
       if (groupBy === "week") {
-        // For weekly grouping, use a simpler approach
-        const weekStart = new Date(date);
-        weekStart.setDate(date.getDate() - date.getDay() + 1); // Start of week (Monday)
+        // For weekly grouping, calculate Monday of the week
+        // Handle timezone by using local date components
+        const year = date.getFullYear();
+        const month = date.getMonth();
+        const day = date.getDate();
+        const dayOfWeek = date.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+        
+        // Calculate days to subtract to get to Monday
+        // If Sunday (0), subtract 6 days; otherwise subtract (dayOfWeek - 1) days
+        const daysToSubtract = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+        
+        const weekStart = new Date(year, month, day - daysToSubtract);
+        weekStart.setHours(0, 0, 0, 0);
         key = weekStart.toISOString().split("T")[0]; // YYYY-MM-DD of Monday
       } else {
         key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
@@ -79,6 +156,7 @@ export async function GET(req: NextRequest) {
     });
 
     // Get previous period data for growth calculation
+    // Exclude returns and voids to match current period calculation
     const previousPeriodStart = new Date(startDate);
     const periodLength = now.getTime() - startDate.getTime();
     previousPeriodStart.setTime(startDate.getTime() - periodLength);
@@ -89,16 +167,78 @@ export async function GET(req: NextRequest) {
           gte: previousPeriodStart,
           lt: startDate,
         },
+        quantity: { gt: 0 }, // Only positive quantities (actual sales, not returns)
+        refId: { not: { startsWith: "void-" } }, // Exclude void transactions
+      },
+      include: {
+        product: true,
       },
       orderBy: {
         createdAt: "asc",
       },
     });
 
-    const previousSalesWithRevenue = previousSales.map((sale) => ({
-      ...sale,
-      revenue: sale.totalAmount,
-    }));
+    // Identify voided sales in previous period (same logic as current period)
+    let previousVoidedSaleIds = new Set<string>();
+    
+    if (stockMovement) {
+      const previousVoidMovements = await stockMovement.findMany({
+        where: {
+          type: "void",
+          createdAt: {
+            gte: previousPeriodStart,
+            lt: startDate,
+          },
+        },
+        select: {
+          refId: true,
+          productId: true,
+          createdAt: true,
+        },
+      });
+      
+      // Match void movements to sales by product and time proximity
+      for (const voidMov of previousVoidMovements) {
+        const matchingSale = previousSales.find(sale => 
+          sale.productId === voidMov.productId &&
+          Math.abs(new Date(sale.createdAt).getTime() - new Date(voidMov.createdAt).getTime()) < 24 * 60 * 60 * 1000
+        );
+        if (matchingSale) {
+          previousVoidedSaleIds.add(matchingSale.id);
+        }
+      }
+    }
+    
+    // Also check void sales directly in previous period
+    const previousVoidSales = await prisma.sale.findMany({
+      where: {
+        createdAt: {
+          gte: previousPeriodStart,
+          lt: startDate,
+        },
+        quantity: { lt: 0 },
+        refId: { startsWith: "void-" },
+      },
+    });
+    
+    previousVoidSales.forEach(voidSale => {
+      const matchingSale = previousSales.find(sale =>
+        sale.productId === voidSale.productId &&
+        Math.abs(new Date(sale.createdAt).getTime() - new Date(voidSale.createdAt).getTime()) < 24 * 60 * 60 * 1000 &&
+        sale.refId && voidSale.refId && voidSale.refId.includes(sale.refId)
+      );
+      if (matchingSale) {
+        previousVoidedSaleIds.add(matchingSale.id);
+      }
+    });
+
+    // Filter out voided sales from previous period
+    const previousSalesWithRevenue = previousSales
+      .filter(sale => !previousVoidedSaleIds.has(sale.id))
+      .map((sale) => ({
+        ...sale,
+        revenue: sale.totalAmount,
+      }));
 
     const previousGroupedData: Record<string, { revenue: number }> = {};
     
@@ -134,19 +274,54 @@ export async function GET(req: NextRequest) {
     
     if (groupBy === "week") {
       // For weekly data, create "This Week", "Last Week", etc.
+      // Helper function to get Monday of a week (handles timezone properly)
+      const getMondayOfWeek = (date: Date): Date => {
+        const d = new Date(date);
+        // Get local date components to avoid timezone issues
+        const year = d.getFullYear();
+        const month = d.getMonth();
+        const day = d.getDate();
+        const dayOfWeek = d.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+        
+        // Calculate days to subtract to get to Monday
+        // If Sunday (0), subtract 6 days; otherwise subtract (dayOfWeek - 1) days
+        const daysToSubtract = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+        
+        const monday = new Date(year, month, day - daysToSubtract);
+        monday.setHours(0, 0, 0, 0); // Start of day
+        return monday;
+      };
+      
       const now = new Date();
-      const thisWeekStart = new Date(now);
-      thisWeekStart.setDate(now.getDate() - now.getDay() + 1); // Monday of this week
+      const thisWeekStart = getMondayOfWeek(now);
+      const thisWeekEnd = new Date(thisWeekStart);
+      thisWeekEnd.setDate(thisWeekStart.getDate() + 6);
+      thisWeekEnd.setHours(23, 59, 59, 999); // End of Sunday
+      
       const lastWeekStart = new Date(thisWeekStart);
       lastWeekStart.setDate(thisWeekStart.getDate() - 7);
+      const lastWeekEnd = new Date(thisWeekStart);
+      lastWeekEnd.setDate(thisWeekStart.getDate() - 1);
+      lastWeekEnd.setHours(23, 59, 59, 999);
       
-      // This Week
+      // This Week - filter sales that fall within this week's date range
       const thisWeekKey = thisWeekStart.toISOString().split("T")[0];
-      const thisWeekData = groupedData[thisWeekKey] || { revenue: 0, date: thisWeekStart };
+      // Also calculate directly from filtered sales to ensure accuracy
+      const thisWeekSales = salesWithRevenue.filter(sale => {
+        const saleDate = new Date(sale.createdAt);
+        return saleDate >= thisWeekStart && saleDate <= thisWeekEnd;
+      });
+      const thisWeekRevenue = thisWeekSales.reduce((sum, sale) => sum + sale.revenue, 0);
+      const thisWeekData = { revenue: thisWeekRevenue, date: thisWeekStart };
       
-      // Last Week
+      // Last Week - filter sales that fall within last week's date range
       const lastWeekKey = lastWeekStart.toISOString().split("T")[0];
-      const lastWeekData = groupedData[lastWeekKey] || { revenue: 0, date: lastWeekStart };
+      const lastWeekSales = salesWithRevenue.filter(sale => {
+        const saleDate = new Date(sale.createdAt);
+        return saleDate >= lastWeekStart && saleDate <= lastWeekEnd;
+      });
+      const lastWeekRevenue = lastWeekSales.reduce((sum, sale) => sum + sale.revenue, 0);
+      const lastWeekData = { revenue: lastWeekRevenue, date: lastWeekStart };
       
       // Calculate growth for This Week vs Last Week
       const thisWeekGrowth = lastWeekData.revenue > 0 
@@ -236,15 +411,36 @@ export async function GET(req: NextRequest) {
       ? ((totalRevenue - previousTotalRevenue) / previousTotalRevenue) * 100
       : 0;
 
-    const avgRevenue = chartData.length > 0
-      ? totalRevenue / chartData.length
-      : 0;
+    // Calculate average revenue - for weekly view, only use weekly data points
+    let avgRevenue = 0;
+    if (groupBy === "week") {
+      // Only use "This Week" and "Last Week" for weekly average
+      const weeklyData = chartData.filter(d => d.period === "This Week" || d.period === "Last Week");
+      const weeklyTotal = weeklyData.reduce((sum, d) => sum + d.revenue, 0);
+      avgRevenue = weeklyData.length > 0 ? weeklyTotal / weeklyData.length : 0;
+    } else {
+      // For monthly view, use all chart data points
+      avgRevenue = chartData.length > 0 ? totalRevenue / chartData.length : 0;
+    }
 
-    const peakRevenue = chartData.length > 0
-      ? Math.max(...chartData.map(d => d.revenue))
-      : 0;
-
-    const peakPeriod = chartData.find(d => d.revenue === peakRevenue)?.period || "";
+    // Calculate peak revenue - context-aware based on view type
+    let peakRevenue = 0;
+    let peakPeriod = "";
+    
+    if (groupBy === "week") {
+      // For weekly view, only consider weekly periods (exclude monthly data)
+      const weeklyData = chartData.filter(d => d.period === "This Week" || d.period === "Last Week");
+      if (weeklyData.length > 0) {
+        peakRevenue = Math.max(...weeklyData.map(d => d.revenue));
+        peakPeriod = weeklyData.find(d => d.revenue === peakRevenue)?.period || "";
+      }
+    } else {
+      // For monthly view, all chartData entries are already months, so simple max works
+      if (chartData.length > 0) {
+        peakRevenue = Math.max(...chartData.map(d => d.revenue));
+        peakPeriod = chartData.find(d => d.revenue === peakRevenue)?.period || "";
+      }
+    }
 
     return NextResponse.json({
       chartData,

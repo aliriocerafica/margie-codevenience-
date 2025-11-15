@@ -109,7 +109,11 @@ export default function ReportsPage() {
     return `/api/reports/stock-movements?${params.toString()}`;
   }, [dateFrom, dateTo, typeFilter]);
 
-  const { data, error, isLoading } = useSWR(query, fetcher);
+  const { data, error, isLoading, mutate } = useSWR(query, fetcher, {
+    refreshInterval: 5000, // Refresh every 5 seconds
+    revalidateOnFocus: true, // Revalidate when window regains focus
+    revalidateOnReconnect: true, // Revalidate when network reconnects
+  });
 
   const rawRows = data?.rows ?? [];
   // DataTable filters by `status`; map movement `type` into `status`
@@ -117,6 +121,7 @@ export default function ReportsPage() {
   const MOVEMENT_STATUS_OPTIONS = [
     { key: "all", label: "All Types" },
     { key: "sale", label: "Sale" },
+    { key: "refund", label: "Refund" },
     { key: "void", label: "Void" },
   ];
 
@@ -124,8 +129,9 @@ export default function ReportsPage() {
     const total = rows.length;
     const sale = rows.filter((r: any) => r.type === "sale").length;
     const manual = rows.filter((r: any) => r.type === "manual").length;
+    const refunds = rows.filter((r: any) => r.type === "refund").length;
     const voids = rows.filter((r: any) => r.type === "void").length;
-    return { total, sale, manual, voids };
+    return { total, sale, manual, refunds, voids };
   }, [rows]);
 
   const columns = [
