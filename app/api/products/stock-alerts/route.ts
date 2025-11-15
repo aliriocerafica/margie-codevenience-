@@ -38,6 +38,25 @@ export async function GET(request: NextRequest) {
 
     console.log(`Found ${products.length} products in database`);
 
+    // Fetch sales data to calculate total quantity sold per product
+    const sales = await prisma.sale.findMany({
+      where: {
+        quantity: { gt: 0 }, // Only positive quantities (actual sales, not returns)
+        refId: { not: { startsWith: "void-" } }, // Exclude void transactions
+      },
+      select: {
+        productId: true,
+        quantity: true,
+      },
+    });
+
+    // Calculate total quantity sold per product
+    const salesByProduct = new Map<string, number>();
+    sales.forEach(sale => {
+      const current = salesByProduct.get(sale.productId) || 0;
+      salesByProduct.set(sale.productId, current + sale.quantity);
+    });
+
     // Convert string stock to number and filter for alerts
     // Use per-product threshold if available, otherwise use general threshold
     const processedProducts = products.map(product => {
@@ -46,6 +65,9 @@ export async function GET(request: NextRequest) {
       const productThreshold = product.lowStockThreshold !== null && product.lowStockThreshold !== undefined
         ? product.lowStockThreshold
         : thresholdNum;
+      
+      // Get total quantity sold for this product
+      const totalQuantitySold = salesByProduct.get(product.id) || 0;
       
       return {
         id: product.id,
@@ -58,19 +80,20 @@ export async function GET(request: NextRequest) {
         imageUrl: product.imageUrl,
         createdAt: product.createdAt,
         updatedAt: product.updatedAt,
-        threshold: productThreshold
+        threshold: productThreshold,
+        totalQuantitySold: totalQuantitySold // Add sales quantity for sorting
       };
     });
 
     // Separate low stock and out of stock products
     // Use each product's individual threshold
-    const lowStockProducts = processedProducts.filter(p => 
-      p.stock < p.threshold && p.stock > 0
-    );
+    const lowStockProducts = processedProducts
+      .filter(p => p.stock < p.threshold && p.stock > 0)
+      .sort((a, b) => b.totalQuantitySold - a.totalQuantitySold); // Sort by sales quantity (top sellers first)
     
-    const outOfStockProducts = processedProducts.filter(p => 
-      p.stock === 0
-    );
+    const outOfStockProducts = processedProducts
+      .filter(p => p.stock === 0)
+      .sort((a, b) => b.totalQuantitySold - a.totalQuantitySold); // Sort by sales quantity (top sellers first)
 
     console.log(`Low stock products (≤${thresholdNum}):`, lowStockProducts.length);
     console.log(`Out of stock products:`, outOfStockProducts.length);
