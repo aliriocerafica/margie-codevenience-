@@ -471,9 +471,6 @@ export default function ReportsPage() {
                 </div>
               </PopoverContent>
             </Popover>
-            <Button size="lg" color="primary" variant="solid" startContent={<Download className="h-4 w-4" />} onPress={() => setIsExportOpen(true)}>
-              Export
-            </Button>
           </div>
         )}
       />

@@ -2,6 +2,7 @@ import nodemailer from 'nodemailer';
 import { render } from '@react-email/render';
 import { StockAlertEmail } from '../emails/StockAlertEmail';
 import { NewProductEmail } from '../emails/NewProductEmail';
+import { PasswordResetEmail } from '../emails/PasswordResetEmail';
 
 interface EmailConfig {
   host: string;
@@ -143,6 +144,40 @@ class EmailService {
       return true;
     } catch (error) {
       console.error('Failed to send new product email:', error);
+      return false;
+    }
+  }
+
+  async sendPasswordResetEmail(
+    to: string,
+    resetLink: string,
+    userName?: string
+  ): Promise<boolean> {
+    if (!this.transporter || !this.config) {
+      console.error('Email service not configured');
+      return false;
+    }
+
+    const isConnected = await this.verifyConnection();
+    if (!isConnected) {
+      return false;
+    }
+
+    try {
+      const emailHtml = await render(PasswordResetEmail({ resetLink, userName }));
+      
+      const mailOptions = {
+        from: `"Margie CodeVenience" <${this.config.auth.user}>`,
+        to,
+        subject: 'Password Reset Request - Margie CodeVenience',
+        html: emailHtml,
+      };
+
+      const result = await this.transporter.sendMail(mailOptions);
+      console.log('Password reset email sent successfully:', result.messageId);
+      return true;
+    } catch (error) {
+      console.error('Failed to send password reset email:', error);
       return false;
     }
   }
