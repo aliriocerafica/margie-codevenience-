@@ -27,7 +27,9 @@ export default auth((req) => {
 
   // 🚫 Prevent logged-in users from accessing root, signup, and auth routes
   if (isLoggedIn && (isRootRoute || isSignupRoute || isAuthRoute)) {
-    return Response.redirect(`${url}/dashboard`);
+    // Redirect Admins to dashboard, Staff to checkout
+    const redirectPath = user?.role === "Admin" ? "/dashboard" : "/ScannedList";
+    return Response.redirect(`${url}${redirectPath}`);
   }
 
   // Protect private routes
@@ -49,11 +51,9 @@ export default auth((req) => {
     }
   }
 
-  // Protect dashboard routes (Admins + Staff allowed)
+  // Protect dashboard routes (only Admins allowed)
   if (isDashboardRoute) {
-    const role = user?.role ?? ""; // fallback to empty string if undefined/null
-
-    if (!isLoggedIn || !["Admin", "Staff"].includes(role)) {
+    if (!isLoggedIn || user?.role !== "Admin") {
       return Response.redirect(`${url}/signup`);
     }
   }
