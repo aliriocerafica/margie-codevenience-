@@ -19,7 +19,6 @@ export type ReceiptModalProps = {
             quantity: number;
         }>;
         subtotal: number;
-        discount: number;
         total: number;
         amountReceived?: number;
         change?: number;
@@ -124,7 +123,6 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ isOpen, onClose, rec
 
                     <div class="totals">
                         <div class="row"><span>Subtotal</span><span>${formatCurrency(receiptData.subtotal)}</span></div>
-                        ${receiptData.discount > 0 ? `<div class="row"><span>Discount</span><span>- ${formatCurrency(receiptData.discount)}</span></div>` : ''}
                         <div class="sep"></div>
                         <div class="row em"><span>Total</span><span>${formatCurrency(receiptData.total)}</span></div>
                     </div>
@@ -152,7 +150,6 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ isOpen, onClose, rec
     };
 
     const itemsSold = receiptData.items.reduce((s, i) => s + i.quantity, 0);
-    const showDiscount = receiptData.discount > 0;
 
     return (
         <Modal 
@@ -227,12 +224,6 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ isOpen, onClose, rec
                                 <span>Subtotal</span>
                                 <span>{formatCurrency(receiptData.subtotal)}</span>
                             </div>
-                            {showDiscount && (
-                                <div className="flex justify-between">
-                                    <span>Discount</span>
-                                    <span>- {formatCurrency(receiptData.discount)}</span>
-                                </div>
-                            )}
                             <hr className="border-dashed border-gray-300 my-1" />
                             <div className="flex justify-between font-bold text-sm">
                                 <span>Total</span>

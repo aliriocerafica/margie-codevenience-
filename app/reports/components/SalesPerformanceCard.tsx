@@ -496,7 +496,13 @@ export default function SalesPerformanceCard() {
       return;
     }
 
-    // For overview tab, open export modal instead
+    // For overview tab, export sales performance report
+    if (activeTab === "overview") {
+      exportSalesPerformance();
+      return;
+    }
+
+    // Fallback: open export modal
     setIsExportOpen(true);
   };
 

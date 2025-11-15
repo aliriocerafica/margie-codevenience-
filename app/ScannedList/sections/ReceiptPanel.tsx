@@ -13,7 +13,6 @@ export type ReceiptPanelProps = {
 };
 
 export const ReceiptPanel: React.FC<ReceiptPanelProps> = ({ items, onClearItems }) => {
-    const [discount, setDiscount] = useState<number>(0);
     const [amountReceived, setAmountReceived] = useState<number>(0);
     const [isConfirmOpen, setIsConfirmOpen] = useState(false);
     const [isReceiptOpen, setIsReceiptOpen] = useState(false);
@@ -41,7 +40,7 @@ export const ReceiptPanel: React.FC<ReceiptPanelProps> = ({ items, onClearItems 
             return;
         }
 
-        const total = Math.max(0, subtotal - discount);
+        const total = subtotal;
         
         // Validate amount received
         if (amountReceived <= 0) {
@@ -109,7 +108,6 @@ export const ReceiptPanel: React.FC<ReceiptPanelProps> = ({ items, onClearItems 
                     quantity: i.quantity,
                 })),
                 subtotal,
-                discount,
                 total,
                 amountReceived,
                 change,
@@ -203,26 +201,15 @@ export const ReceiptPanel: React.FC<ReceiptPanelProps> = ({ items, onClearItems 
 
     const handleClear = () => {
         onClearItems();
-        setDiscount(0);
         setAmountReceived(0);
     };
 
-    const total = Math.max(0, subtotal - discount);
+    const total = subtotal;
     const change = Math.max(0, amountReceived - total);
 
     return (
         <div className="space-y-4">
             <div className="rounded-xl border border-gray-200 dark:border-gray-800 p-5 bg-white dark:bg-gray-900 space-y-3">
-                <div className="flex items-center justify-between">
-                    <label className="text-sm text-gray-600 dark:text-gray-400">Discount (₱)</label>
-                    <input 
-                        type="number" 
-                        className="w-32 h-10 rounded-lg border border-gray-200 dark:border-gray-800 bg-transparent px-3"
-                        value={discount}
-                        onChange={e => setDiscount(Math.max(0, Number(e.target.value || 0)))}
-                        min={0}
-                    />
-                </div>
                 <div className="flex items-center justify-between">
                     <label className="text-sm text-gray-600 dark:text-gray-400">Amount Received (₱)</label>
                     <input 
@@ -237,7 +224,6 @@ export const ReceiptPanel: React.FC<ReceiptPanelProps> = ({ items, onClearItems 
 
             <ReceiptSummary 
                 subtotal={subtotal}
-                discount={discount}
                 amountReceived={amountReceived}
                 change={change}
                 additionalFees={[]}
