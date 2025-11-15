@@ -197,9 +197,6 @@ export default function TopProductsCard() {
             <Button size="sm" color="success" variant="flat" className="flex-1" onPress={() => setIsModalOpen(true)}>
               View Details
             </Button>
-            <Button size="sm" color="default" variant="light" isIconOnly>
-              <Download className="h-4 w-4" />
-            </Button>
           </div>
         </CardBody>
       </Card>
