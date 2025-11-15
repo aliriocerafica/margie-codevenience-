@@ -46,6 +46,7 @@ interface DataTableProps {
     customFilters?: React.ReactNode; // extra filter controls area
     defaultSort?: { key: string; direction: 'asc' | 'desc' }; // default sorting
     defaultVisibleColumns?: string[]; // columns to show by default
+    showColumnFilter?: boolean; // show/hide column visibility filter (default: true)
 }
 
 const DataTable = ({
@@ -62,6 +63,7 @@ const DataTable = ({
     customFilters,
     defaultSort,
     defaultVisibleColumns,
+    showColumnFilter = true,
 }: DataTableProps) => {
     const [searchTerm, setSearchTerm] = useState("");
     const [currentPage, setCurrentPage] = useState(1);
@@ -285,33 +287,35 @@ const DataTable = ({
                                 )}
 
                                 {/* Show/hide columns */}
-                                <Dropdown>
-                                    <DropdownTrigger>
-                                        <Button
-                                            color="primary"
-                                            endContent={<ChevronDown />}
-                                            startContent={<Columns3 className="h-4 w-4" />}
-                                            size="lg"
-                                            variant="flat"
-                                            className="px-3 sm:px-4"
+                                {showColumnFilter && (
+                                    <Dropdown>
+                                        <DropdownTrigger>
+                                            <Button
+                                                color="primary"
+                                                endContent={<ChevronDown />}
+                                                startContent={<Columns3 className="h-4 w-4" />}
+                                                size="lg"
+                                                variant="flat"
+                                                className="px-3 sm:px-4"
+                                            >
+                                                <span className="hidden sm:inline">Show Columns</span>
+                                            </Button>
+                                        </DropdownTrigger>
+                                        <DropdownMenu
+                                            aria-label="Table Columns"
+                                            closeOnSelect={false}
+                                            selectionMode="multiple"
+                                            selectedKeys={new Set(visibleColumns)}
+                                            onSelectionChange={handleColumnFilterChange}
                                         >
-                                            <span className="hidden sm:inline">Show Columns</span>
-                                        </Button>
-                                    </DropdownTrigger>
-                                    <DropdownMenu
-                                        aria-label="Table Columns"
-                                        closeOnSelect={false}
-                                        selectionMode="multiple"
-                                        selectedKeys={new Set(visibleColumns)}
-                                        onSelectionChange={handleColumnFilterChange}
-                                    >
-                                        {columns.map((column) => (
-                                            <DropdownItem key={column.key}>
-                                                {column.header}
-                                            </DropdownItem>
-                                        ))}
-                                    </DropdownMenu>
-                                </Dropdown>
+                                            {columns.map((column) => (
+                                                <DropdownItem key={column.key}>
+                                                    {column.header}
+                                                </DropdownItem>
+                                            ))}
+                                        </DropdownMenu>
+                                    </Dropdown>
+                                )}
                             </>
                         )}
                         <div className="whitespace-nowrap flex items-center">{customFilters}</div>
@@ -366,33 +370,35 @@ const DataTable = ({
                                 )}
 
                                 {/* Show/hide columns */}
-                                <Dropdown>
-                                    <DropdownTrigger>
-                                        <Button
-                                            color="primary"
-                                            endContent={<ChevronDown />}
-                                            startContent={<Columns3 className="h-4 w-4" />}
-                                            size="lg"
-                                            variant="flat"
-                                            className="px-3"
+                                {showColumnFilter && (
+                                    <Dropdown>
+                                        <DropdownTrigger>
+                                            <Button
+                                                color="primary"
+                                                endContent={<ChevronDown />}
+                                                startContent={<Columns3 className="h-4 w-4" />}
+                                                size="lg"
+                                                variant="flat"
+                                                className="px-3"
+                                            >
+                                                <span className="hidden xs:inline">Columns</span>
+                                            </Button>
+                                        </DropdownTrigger>
+                                        <DropdownMenu
+                                            aria-label="Table Columns"
+                                            closeOnSelect={false}
+                                            selectionMode="multiple"
+                                            selectedKeys={new Set(visibleColumns)}
+                                            onSelectionChange={handleColumnFilterChange}
                                         >
-                                            <span className="hidden xs:inline">Columns</span>
-                                        </Button>
-                                    </DropdownTrigger>
-                                    <DropdownMenu
-                                        aria-label="Table Columns"
-                                        closeOnSelect={false}
-                                        selectionMode="multiple"
-                                        selectedKeys={new Set(visibleColumns)}
-                                        onSelectionChange={handleColumnFilterChange}
-                                    >
-                                        {columns.map((column) => (
-                                            <DropdownItem key={column.key}>
-                                                {column.header}
-                                            </DropdownItem>
-                                        ))}
-                                    </DropdownMenu>
-                                </Dropdown>
+                                            {columns.map((column) => (
+                                                <DropdownItem key={column.key}>
+                                                    {column.header}
+                                                </DropdownItem>
+                                            ))}
+                                        </DropdownMenu>
+                                    </Dropdown>
+                                )}
 
                                 {/* Custom filters */}
                                 <div className="whitespace-nowrap flex items-center">{customFilters}</div>

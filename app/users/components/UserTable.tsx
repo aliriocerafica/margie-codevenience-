@@ -180,6 +180,7 @@ export const UserTable: React.FC<UserTableProps> = ({
           statusOptions={USER_ROLE_OPTIONS}
           filterKey="role"
           filterLabel="Filter Role"
+          showColumnFilter={false}
         />
       </div>
     );
@@ -198,6 +199,7 @@ export const UserTable: React.FC<UserTableProps> = ({
           statusOptions={USER_ROLE_OPTIONS}
           filterKey="role"
           filterLabel="Filter Role"
+          showColumnFilter={false}
         />
       </div>
     );
@@ -214,6 +216,7 @@ export const UserTable: React.FC<UserTableProps> = ({
         statusOptions={USER_ROLE_OPTIONS}
         filterKey="role"
         filterLabel="Filter Role"
+        showColumnFilter={false}
       />
     </div>
   );

@@ -140,6 +140,7 @@ export const CategoryTable: React.FC<CategoryTableProps> = ({ data, isLoading, e
           isLoading={true}
           defaultSort={{ key: "name", direction: "asc" }}
           filterLabel="Filter Category"
+          showColumnFilter={false}
         />
       </div>
     );
@@ -159,6 +160,7 @@ export const CategoryTable: React.FC<CategoryTableProps> = ({ data, isLoading, e
           error={error}
           defaultSort={{ key: "name", direction: "asc" }}
           filterLabel="Filter Category"
+          showColumnFilter={false}
         />
       </div>
     );
@@ -176,6 +178,7 @@ export const CategoryTable: React.FC<CategoryTableProps> = ({ data, isLoading, e
         data={rows}
         defaultSort={{ key: "name", direction: "asc" }}
         filterLabel="Filter Category"
+        showColumnFilter={false}
       />
     </div>
   );
