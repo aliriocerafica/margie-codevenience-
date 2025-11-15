@@ -16,7 +16,7 @@ export default function ConditionalLayout({
   const pathname = usePathname();
 
   // Pages that should not have the sidebar
-  const noSidebarPages = ["/", "/signup", "/sign-in", "/forgot-password"];
+  const noSidebarPages = ["/", "/signup", "/sign-in", "/forgot-password", "/reset-password"];
 
   if (noSidebarPages.includes(pathname)) {
     return <>{children}</>;

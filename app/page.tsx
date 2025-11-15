@@ -130,10 +130,13 @@ export default function SignupPage() {
                 localStorage.removeItem('rememberedEmail');
             }
 
-            // If successful, refresh the router to update session and redirect
+            // If successful, redirect with full page reload to ensure session is updated
             if ((result as any)?.ok) {
-                router.refresh(); // Force session refresh
-                router.push('/dashboard');
+                // Use window.location for full page reload to ensure session is properly set
+                // Get role from the API response data
+                const userRole = data.role;
+                const redirectPath = userRole === "Admin" ? "/dashboard" : "/ScannedList";
+                window.location.href = redirectPath;
             } else {
                 setLoading(false);
             }
