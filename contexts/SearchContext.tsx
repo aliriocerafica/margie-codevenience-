@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 
 // Types for searchable content
 export interface SearchableItem {
@@ -45,6 +46,7 @@ const SearchContext = createContext<SearchContextType | undefined>(undefined);
 
 export function SearchProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const { data: session } = useSession();
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchableItem[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -73,64 +75,95 @@ export function SearchProvider({ children }: { children: React.ReactNode }) {
       const controller = new AbortController();
       abortRef.current = controller;
 
+      // Get current user role (may have changed)
+      const currentUserRole = (session as any)?.user?.role;
+      const currentIsStaff = currentUserRole === 'Staff';
+
       try {
-        const [productsRes, categoriesRes, usersRes] = await Promise.allSettled([
-          fetch('/api/product', { signal: controller.signal }),
-          fetch('/api/category', { signal: controller.signal }),
-          fetch('/api/users', { signal: controller.signal }),
-        ]);
+        // Only fetch products, categories, and users for Admin users
+        const fetchPromises: Promise<Response>[] = [];
+        if (!currentIsStaff) {
+          fetchPromises.push(
+            fetch('/api/product', { signal: controller.signal }),
+            fetch('/api/category', { signal: controller.signal }),
+            fetch('/api/users', { signal: controller.signal })
+          );
+        }
+        
+        const settledResults = await Promise.allSettled(fetchPromises);
+        const [productsRes, categoriesRes, usersRes] = currentIsStaff 
+          ? [null, null, null] 
+          : [
+              settledResults[0] || null,
+              settledResults[1] || null,
+              settledResults[2] || null,
+            ];
 
-        const results: SearchableItem[] = [...staticPages];
+        // Filter static pages based on user role
+        const allowedStaticPages = currentIsStaff
+          ? staticPages.filter(page => 
+              ['scan-qr', 'scanned-list'].includes(page.id)
+            )
+          : currentUserRole === 'Admin'
+          ? staticPages // Admins see all pages
+          : staticPages.filter(page => 
+              !['dashboard', 'products', 'categories', 'users', 'reports'].includes(page.id)
+            );
 
-        if (productsRes.status === 'fulfilled' && productsRes.value.ok) {
-          const products = await productsRes.value.json();
-          if (Array.isArray(products)) {
-            for (const p of products) {
-              const title = String(p.name ?? '').trim();
-              const category = String(p.category?.name ?? '').trim();
-              if (!title) continue;
-              results.push({
-                id: String(p.id ?? title),
-                title,
-                description: category ? `Category: ${category}` : undefined,
-                type: 'product',
-                url: '/product',
-                metadata: { price: p.price, category },
-              });
+        const results: SearchableItem[] = [...allowedStaticPages];
+
+        // Only add products, categories, and users for Admin users
+        if (!currentIsStaff) {
+          if (productsRes && productsRes.status === 'fulfilled' && productsRes.value.ok) {
+            const products = await productsRes.value.json();
+            if (Array.isArray(products)) {
+              for (const p of products) {
+                const title = String(p.name ?? '').trim();
+                const category = String(p.category?.name ?? '').trim();
+                if (!title) continue;
+                results.push({
+                  id: String(p.id ?? title),
+                  title,
+                  description: category ? `Category: ${category}` : undefined,
+                  type: 'product',
+                  url: '/product',
+                  metadata: { price: p.price, category },
+                });
+              }
             }
           }
-        }
 
-        if (categoriesRes.status === 'fulfilled' && categoriesRes.value.ok) {
-          const categories = await categoriesRes.value.json();
-          if (Array.isArray(categories)) {
-            for (const c of categories) {
-              const title = String(c.name ?? '').trim();
-              if (!title) continue;
-              results.push({
-                id: String(c.id ?? title),
-                title,
-                description: `Products: ${c.productCount ?? 0}`,
-                type: 'category',
-                url: '/category',
-              });
+          if (categoriesRes && categoriesRes.status === 'fulfilled' && categoriesRes.value.ok) {
+            const categories = await categoriesRes.value.json();
+            if (Array.isArray(categories)) {
+              for (const c of categories) {
+                const title = String(c.name ?? '').trim();
+                if (!title) continue;
+                results.push({
+                  id: String(c.id ?? title),
+                  title,
+                  description: `Products: ${c.productCount ?? 0}`,
+                  type: 'category',
+                  url: '/category',
+                });
+              }
             }
           }
-        }
 
-        if (usersRes.status === 'fulfilled' && usersRes.value.ok) {
-          const users = await usersRes.value.json();
-          if (Array.isArray(users)) {
-            for (const u of users) {
-              const title = String(u.email ?? '').trim();
-              if (!title) continue;
-              results.push({
-                id: String(u.id ?? title),
-                title,
-                description: `Role: ${u.role ?? ''}`,
-                type: 'user',
-                url: '/users',
-              });
+          if (usersRes && usersRes.status === 'fulfilled' && usersRes.value.ok) {
+            const users = await usersRes.value.json();
+            if (Array.isArray(users)) {
+              for (const u of users) {
+                const title = String(u.email ?? '').trim();
+                if (!title) continue;
+                results.push({
+                  id: String(u.id ?? title),
+                  title,
+                  description: `Role: ${u.role ?? ''}`,
+                  type: 'user',
+                  url: '/users',
+                });
+              }
             }
           }
         }
@@ -150,7 +183,7 @@ export function SearchProvider({ children }: { children: React.ReactNode }) {
         setIsSearching(false);
       }
     }, 300);
-  }, []);
+  }, [session]);
 
   const handleSetSearchQuery = useCallback((query: string) => {
     setSearchQuery(query);
