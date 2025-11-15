@@ -154,10 +154,55 @@ export default function ProfilePage() {
     }
 
     setLoading(true);
+    setMessage("");
 
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // Update profile information (if changed)
+      const profileUpdates: any = {};
+      if (formData.name !== profile?.name) {
+        profileUpdates.name = formData.name;
+      }
+      if (formData.email !== profile?.email) {
+        profileUpdates.email = formData.email;
+      }
+      if (formData.role !== profile?.role) {
+        profileUpdates.role = formData.role;
+      }
+
+      // Update profile if there are changes
+      if (Object.keys(profileUpdates).length > 0 && profile?.id) {
+        const profileRes = await fetch("/api/users", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            id: profile.id,
+            ...profileUpdates,
+          }),
+        });
+
+        if (!profileRes.ok) {
+          const profileError = await profileRes.json();
+          throw new Error(profileError.error || "Failed to update profile");
+        }
+      }
+
+      // Change password if provided
+      if (formData.newPassword && formData.currentPassword) {
+        const passwordRes = await fetch("/api/auth/change-password", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            currentPassword: formData.currentPassword,
+            newPassword: formData.newPassword,
+          }),
+        });
+
+        if (!passwordRes.ok) {
+          const passwordError = await passwordRes.json();
+          throw new Error(passwordError.error || "Failed to change password");
+        }
+      }
+
       setMessage("Profile updated successfully!");
       setIsEditing(false);
       setFormData((prev) => ({
@@ -166,6 +211,9 @@ export default function ProfilePage() {
         newPassword: "",
         confirmPassword: "",
       }));
+      
+      // Refresh the page to update session if needed
+      window.location.reload();
     } catch (error) {
       setMessage("Error updating profile: " + (error as Error).message);
     } finally {
