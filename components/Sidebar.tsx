@@ -163,14 +163,14 @@ export default function Sidebar({ children }: SidebarProps) {
         openSearchModal();
     };
 
-    // Role-based filtering: hide Products, Categories, Team, and Reports for Staff
+    // Role-based filtering: hide Dashboard, Products, Categories, Team, and Reports for Staff
     // During SSR or before mount, show safe links to prevent hydration mismatch
     // After mount, apply role-based filtering
     const userRole = (session as any)?.user?.role;
     const baseMenuItems = !isMounted || status === "loading"
-        ? menuItems.filter((item) => ["Dashboard", "Scan Items", "Checkout"].includes(item.name))
+        ? menuItems.filter((item) => ["Scan Items", "Checkout"].includes(item.name))
         : userRole === 'Staff'
-        ? menuItems.filter((item) => !["Products", "Categories", "Team", "Reports"].includes(item.name))
+        ? menuItems.filter((item) => !["Dashboard", "Products", "Categories", "Team", "Reports"].includes(item.name))
         : menuItems; // Show all links for Admin users or when session is authenticated
 
     // Filter menu items based on local search query (for sidebar filtering)
