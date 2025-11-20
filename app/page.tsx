@@ -9,12 +9,14 @@ import { Checkbox } from "@heroui/checkbox";
 import { Mail, Eye, EyeOff, Lock } from "lucide-react";
 import { ThemeSwitch } from "@/components/ThemeSwitch";
 import { signIn } from "next-auth/react";
+import SplashScreen from "@/components/SplashScreen";
 
 export default function SignupPage() {
     const router = useRouter();
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [loading, setLoading] = useState(false);
+    const [showSplash, setShowSplash] = useState(false);
     const [message, setMessage] = useState("");
     const [emailError, setEmailError] = useState("");
     const [passwordError, setPasswordError] = useState("");
@@ -130,13 +132,20 @@ export default function SignupPage() {
                 localStorage.removeItem('rememberedEmail');
             }
 
-            // If successful, redirect with full page reload to ensure session is updated
+            // If successful, show splash screen after loading completes, then redirect
             if ((result as any)?.ok) {
-                // Use window.location for full page reload to ensure session is properly set
                 // Get role from the API response data
                 const userRole = data.role;
                 const redirectPath = userRole === "Admin" ? "/dashboard" : "/ScannedList";
-                window.location.href = redirectPath;
+                
+                // Loading is complete, now show splash screen
+                setLoading(false);
+                setShowSplash(true);
+                
+                // Redirect after showing splash screen
+                setTimeout(() => {
+                    window.location.href = redirectPath;
+                }, 1500); // Show splash for 1.5 seconds before redirect
             } else {
                 setLoading(false);
             }
@@ -150,11 +159,15 @@ export default function SignupPage() {
 
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-950 flex flex-col lg:flex-row relative">
-            {/* Dark Mode Toggle - Top Right */}
-            <div className="absolute top-4 right-4 z-50" suppressHydrationWarning>
-                <ThemeSwitch />
-            </div>
+        <>
+            {/* Show splash screen after login loading completes */}
+            {showSplash && <SplashScreen autoHide={false} />}
+            
+            <div className={`min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-950 flex flex-col lg:flex-row relative ${showSplash ? 'opacity-0 pointer-events-none' : ''}`}>
+                {/* Dark Mode Toggle - Top Right */}
+                <div className="absolute top-4 right-4 z-50" suppressHydrationWarning>
+                    <ThemeSwitch />
+                </div>
             {/* Mobile Header / Desktop Left Panel - Branding */}
             <div
                 className="w-full lg:w-2/5 flex flex-col relative shadow-2xl px-4 py-8 lg:py-0 min-h-[200px] lg:min-h-screen"
@@ -327,6 +340,7 @@ export default function SignupPage() {
                     </Card>
                 </div>
             </div>
-        </div>
+            </div>
+        </>
     );
 }

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { auth } from "@/auth";
 
 type CheckoutItem = {
   productId: string;
@@ -16,13 +17,31 @@ function computeStatus(stock: number, threshold: number) {
 
 export async function POST(req: NextRequest) {
   try {
+    // Get user from session
+    const session = await auth();
+    const userId: string | undefined = session?.user?.id ?? undefined;
+    
+    // Log for debugging (remove in production if needed)
+    if (!userId) {
+      console.log("Warning: No userId found in session. User may not be logged in.");
+    } else {
+      console.log("Checkout: User ID from session:", userId);
+    }
+    
     const body = await req.json();
     const items: CheckoutItem[] = Array.isArray(body?.items) ? body.items : [];
     const action: "sale" | "void" = (body?.action === "void" ? "void" : "sale");
+    const originalTransactionNo: string | undefined = body?.originalTransactionNo; // For voids, the original checkout transaction number
+    const approvedBy: string | undefined = body?.approvedBy; // Admin who approved the void (for audit purposes)
+    const requestedByUserId: string | undefined = body?.requestedByUserId; // For void requests: the staff member who requested the void
     const threshold: number = Number.isFinite(body?.threshold)
       ? Math.max(0, Math.floor(body.threshold))
       : DEFAULT_THRESHOLD;
-    const userId: string | undefined = body?.userId ?? undefined;
+    
+    // For void transactions, use requestedByUserId if provided (staff who requested),
+    // otherwise use session userId (admin who is voiding directly)
+    // This ensures "handled by" shows the correct person
+    const effectiveUserId = (action === "void" && requestedByUserId) ? requestedByUserId : userId;
 
     if (!items.length) {
       return NextResponse.json({ error: "No items to checkout" }, { status: 400 });
@@ -71,6 +90,23 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "StockMovement model not available. Run: npx prisma generate && npx prisma db push" }, { status: 500 });
     }
 
+    // Generate transaction number
+    // For voids: if originalTransactionNo is provided, extract timestamp and reuse it
+    // Otherwise generate new timestamp
+    let transactionNo: string;
+    if (action === "void") {
+      if (originalTransactionNo && originalTransactionNo.startsWith("checkout-")) {
+        // Extract timestamp from original checkout-{timestamp} and create void-{timestamp}
+        const timestamp = originalTransactionNo.replace("checkout-", "");
+        transactionNo = `void-${timestamp}`;
+      } else {
+        // Fallback if no original transaction number provided
+        transactionNo = `void-${Date.now()}`;
+      }
+    } else {
+      transactionNo = `checkout-${Date.now()}`;
+    }
+
     const txResult = await prisma.$transaction(async (tx) => {
       const updates: Promise<any>[] = [];
       for (const it of items) {
@@ -102,8 +138,8 @@ export async function POST(req: NextRequest) {
               quantity: it.quantity,
               unitPrice: unitPrice,
               totalAmount: totalAmount,
-              refId: `checkout-${Date.now()}`,
-              userId,
+              refId: transactionNo,
+              userId: effectiveUserId,
             }
           });
         } else if (action === "void") {
@@ -113,19 +149,23 @@ export async function POST(req: NextRequest) {
           const totalAmount = it.quantity * unitPrice;
           
           // Create refund Sale record
+          // Use effectiveUserId (staff who requested) for userId, approvedBy for audit
           await tx.sale.create({
             data: {
               productId: prod.id,
               quantity: -it.quantity, // Negative for refund
               unitPrice: unitPrice,
               totalAmount: -totalAmount, // Negative for refund
-              refId: `void-${Date.now()}`,
-              userId,
+              refId: transactionNo,
+              userId: effectiveUserId, // Staff who requested the void (or admin if voiding directly)
+              approvedBy: approvedBy, // Log who approved this void (for audit purposes)
             }
           });
         }
 
         // Create StockMovement record
+        // Use effectiveUserId (staff who requested void, or admin if voiding directly)
+        // This ensures "handled by" shows the person who requested/handled the void
         updates.push(
           (tx as any).stockMovement.create({
             data: {
@@ -134,7 +174,7 @@ export async function POST(req: NextRequest) {
               quantity: action === "sale" ? -Math.abs(it.quantity) : Math.abs(it.quantity),
               beforeStock,
               afterStock,
-              userId,
+              userId: effectiveUserId,
             },
           })
         );
@@ -152,7 +192,7 @@ export async function POST(req: NextRequest) {
       return { lowNow, outNow };
     });
 
-    return NextResponse.json({ success: true, action, summary: { lowNow: txResult.lowNow, outNow: txResult.outNow } });
+    return NextResponse.json({ success: true, action, transactionNo, summary: { lowNow: txResult.lowNow, outNow: txResult.outNow } });
   } catch (error) {
     console.error("Checkout error:", error);
     return NextResponse.json({ 

@@ -60,6 +60,7 @@ model Sale {
   totalAmount Float
   refId       String?  // Link to order/transaction
   userId      String?  // Who made the sale
+  approvedBy  String?  // Admin who approved void (for void transactions)
   createdAt   DateTime @default(now())
 }
 
@@ -98,4 +99,19 @@ model CartItem {
   updatedAt DateTime @updatedAt
 
   @@unique([cartId, productId])
+}
+
+model VoidRequest {
+  id                String   @id @default(auto()) @map("_id") @db.ObjectId
+  transactionNo     String   // The transaction to void
+  requestedBy       String   // Staff user ID who requested
+  requestedByEmail  String   // For display purposes
+  reason            String?  // Optional reason for void
+  status            String   @default("pending") // "pending" | "approved" | "rejected"
+  approvedBy        String?  // Admin user ID who approved/rejected
+  approvedByEmail   String?  // For display purposes
+  approvedAt        DateTime?
+  transactionData   String   // JSON stringified transaction details for reference
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 }

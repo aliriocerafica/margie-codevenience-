@@ -1,7 +1,7 @@
 "use client";
 
 import { Card, CardHeader, CardBody, Button, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Select, SelectItem, Tabs, Tab, Input, Textarea, Chip, Pagination } from "@heroui/react";
-import { BarChart3, TrendingUp, Download, FileText, RotateCcw, XCircle, ArrowUpDown, Calendar, Hash, Package, DollarSign, Percent } from "lucide-react";
+import { BarChart3, TrendingUp, Download, FileText, RotateCcw, XCircle, ArrowUpDown, Calendar, Hash, Package, DollarSign, Percent, User } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, BarChart, Bar } from 'recharts';
 import { useState, useEffect, useMemo } from "react";
 import useSWR from "swr";
@@ -18,11 +18,16 @@ export default function SalesPerformanceCard() {
   const [activeTab, setActiveTab] = useState<string>("overview");
   const [reportDateFrom, setReportDateFrom] = useState<string>("");
   const [reportDateTo, setReportDateTo] = useState<string>("");
+  const [detailedSalesHandledByFilter, setDetailedSalesHandledByFilter] = useState<string>("");
+  const [voidItemsHandledByFilter, setVoidItemsHandledByFilter] = useState<string>("");
   const [isReturnModalOpen, setIsReturnModalOpen] = useState(false);
   const [selectedSale, setSelectedSale] = useState<any>(null);
   const [returnQuantity, setReturnQuantity] = useState<number>(1);
   const [returnReason, setReturnReason] = useState<string>("");
   const [isProcessingReturn, setIsProcessingReturn] = useState(false);
+  const [expandedTransaction, setExpandedTransaction] = useState<string | null>(null);
+  const [isTransactionDetailOpen, setIsTransactionDetailOpen] = useState(false);
+  const [selectedTransaction, setSelectedTransaction] = useState<any>(null);
   const [sortField, setSortField] = useState<string>("dateTime");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
   const [currentPage, setCurrentPage] = useState<number>(1);
@@ -248,9 +253,45 @@ export default function SalesPerformanceCard() {
   const returnedItemsRows = returnedItemsData?.rows || [];
   const voidItemsRows = voidItemsData?.rows || [];
 
+  // Get unique users for filter dropdowns
+  const uniqueUsers = useMemo(() => {
+    const users = new Set<string>();
+    detailedSalesRows.forEach((row: any) => {
+      if (row.handledBy) users.add(row.handledBy);
+    });
+    voidItemsRows.forEach((row: any) => {
+      if (row.handledBy) users.add(row.handledBy);
+    });
+    return Array.from(users).sort();
+  }, [detailedSalesRows, voidItemsRows]);
+
+  // Filter detailed sales
+  const filteredAndSortedSales = useMemo(() => {
+    let filtered = [...detailedSalesRows];
+    
+    // Filter by handledBy
+    if (detailedSalesHandledByFilter) {
+      filtered = filtered.filter((row: any) => row.handledBy === detailedSalesHandledByFilter);
+    }
+    
+    return filtered;
+  }, [detailedSalesRows, detailedSalesHandledByFilter]);
+
+  // Filter void items
+  const filteredVoidItems = useMemo(() => {
+    let filtered = [...voidItemsRows];
+    
+    // Filter by handledBy
+    if (voidItemsHandledByFilter) {
+      filtered = filtered.filter((row: any) => row.handledBy === voidItemsHandledByFilter);
+    }
+    
+    return filtered;
+  }, [voidItemsRows, voidItemsHandledByFilter]);
+
   // Sorting and pagination for detailed sales
   const sortedAndPaginatedSales = useMemo(() => {
-    const sorted = [...detailedSalesRows].sort((a: any, b: any) => {
+    const sorted = [...filteredAndSortedSales].sort((a: any, b: any) => {
       let aVal = a[sortField];
       let bVal = b[sortField];
       
@@ -271,9 +312,9 @@ export default function SalesPerformanceCard() {
     
     const startIndex = (currentPage - 1) * itemsPerPage;
     return sorted.slice(startIndex, startIndex + itemsPerPage);
-  }, [detailedSalesRows, sortField, sortDirection, currentPage, itemsPerPage]);
+  }, [filteredAndSortedSales, sortField, sortDirection, currentPage, itemsPerPage]);
 
-  const totalPages = Math.ceil(detailedSalesRows.length / itemsPerPage);
+  const totalPages = Math.ceil(filteredAndSortedSales.length / itemsPerPage);
 
   const handleSort = (field: string) => {
     if (sortField === field) {
@@ -417,18 +458,25 @@ export default function SalesPerformanceCard() {
     
     if (activeTab === "detailed-sales") {
       const workbook = XLSX.utils.book_new();
-      const sheetData = detailedSalesRows.map((r: any) => ({
-        'Date & Time': new Date(r.dateTime).toLocaleString(),
-        'Transaction No.': r.transactionNo,
-        'Product Name': r.productName,
-        'Barcode': r.barcode,
-        'Quantity': r.quantity,
-        'Unit Price (₱)': r.unitPrice,
-        'Total (₱)': r.total,
-      }));
+      // Flatten transactions to show each product as a row
+      const sheetData: any[] = [];
+      detailedSalesRows.forEach((transaction: any) => {
+        transaction.items.forEach((item: any) => {
+          sheetData.push({
+            'Date & Time': new Date(transaction.dateTime).toLocaleString(),
+            'Transaction No.': transaction.transactionNo,
+            'Product Name': item.productName,
+            'Barcode': item.barcode,
+            'Quantity': item.quantity,
+            'Unit Price (₱)': item.unitPrice,
+            'Total (₱)': item.total,
+            'Handled By': transaction.handledBy || 'N/A',
+          });
+        });
+      });
       const sheet = XLSX.utils.json_to_sheet(sheetData);
       sheet['!cols'] = [
-        { wch: 20 }, { wch: 20 }, { wch: 30 }, { wch: 15 }, { wch: 10 }, { wch: 15 }, { wch: 15 }
+        { wch: 20 }, { wch: 20 }, { wch: 30 }, { wch: 15 }, { wch: 10 }, { wch: 15 }, { wch: 15 }, { wch: 20 }
       ];
       XLSX.utils.book_append_sheet(workbook, sheet, 'Detailed Sales');
       XLSX.writeFile(workbook, `detailed-sales-${timestamp}.xlsx`);
@@ -829,7 +877,7 @@ export default function SalesPerformanceCard() {
               >
                 <div className="space-y-6 pt-4">
                   <div className="flex items-center gap-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                    <div className="grid grid-cols-2 gap-4 flex-1">
+                    <div className="grid grid-cols-3 gap-4 flex-1">
                       <Input
                         type="datetime-local"
                         label="From (Optional)"
@@ -837,18 +885,16 @@ export default function SalesPerformanceCard() {
                         placeholder="Click to select start date"
                         value={reportDateFrom || ""}
                         onChange={(e) => {
-                          // Only set if user actually selected a value
                           const val = e.target.value;
                           setReportDateFrom(val || "");
                         }}
                         onBlur={(e) => {
-                          // Clear if user didn't confirm a selection (field still appears empty)
                           if (!e.target.value) {
                             setReportDateFrom("");
                           }
                         }}
                         size="sm"
-                        description="Leave empty to show all sales. Picker shows today as reference only."
+                        description="Leave empty to show all sales"
                       />
                       <Input
                         type="datetime-local"
@@ -857,19 +903,36 @@ export default function SalesPerformanceCard() {
                         placeholder="Click to select end date"
                         value={reportDateTo || ""}
                         onChange={(e) => {
-                          // Only set if user actually selected a value
                           const val = e.target.value;
                           setReportDateTo(val || "");
                         }}
                         onBlur={(e) => {
-                          // Clear if user didn't confirm a selection (field still appears empty)
                           if (!e.target.value) {
                             setReportDateTo("");
                           }
                         }}
                         size="sm"
-                        description="Leave empty to show all sales. Picker shows today as reference only."
+                        description="Leave empty to show all sales"
                       />
+                      <Select
+                        label="Handled By (Optional)"
+                        labelPlacement="outside"
+                        placeholder="All users"
+                        selectedKeys={detailedSalesHandledByFilter ? [detailedSalesHandledByFilter] : []}
+                        onSelectionChange={(keys) => {
+                          const selected = Array.from(keys)[0] as string;
+                          setDetailedSalesHandledByFilter(selected || "");
+                          setCurrentPage(1);
+                        }}
+                        size="sm"
+                        description="Filter by user who handled the transaction"
+                      >
+                        {uniqueUsers.map((user) => (
+                          <SelectItem key={user}>
+                            {user}
+                          </SelectItem>
+                        ))}
+                      </Select>
                     </div>
                   </div>
                   {/* Card-based Layout */}
@@ -890,27 +953,27 @@ export default function SalesPerformanceCard() {
                         </Button>
                         <Button
                           size="sm"
-                          variant={sortField === "total" ? "flat" : "light"}
-                          color={sortField === "total" ? "primary" : "default"}
+                          variant={sortField === "totalAmount" ? "flat" : "light"}
+                          color={sortField === "totalAmount" ? "primary" : "default"}
                           startContent={<DollarSign className="h-4 w-4" />}
                           endContent={<ArrowUpDown className="h-3 w-3" />}
-                          onPress={() => handleSort("total")}
+                          onPress={() => handleSort("totalAmount")}
                         >
-                          Total Amount {sortField === "total" && (sortDirection === "asc" ? "↑" : "↓")}
+                          Total Amount {sortField === "totalAmount" && (sortDirection === "asc" ? "↑" : "↓")}
                         </Button>
                         <Button
                           size="sm"
-                          variant={sortField === "productName" ? "flat" : "light"}
-                          color={sortField === "productName" ? "primary" : "default"}
+                          variant={sortField === "itemCount" ? "flat" : "light"}
+                          color={sortField === "itemCount" ? "primary" : "default"}
                           startContent={<Package className="h-4 w-4" />}
                           endContent={<ArrowUpDown className="h-3 w-3" />}
-                          onPress={() => handleSort("productName")}
+                          onPress={() => handleSort("itemCount")}
                         >
-                          Product {sortField === "productName" && (sortDirection === "asc" ? "↑" : "↓")}
+                          Item Count {sortField === "itemCount" && (sortDirection === "asc" ? "↑" : "↓")}
                         </Button>
                       </div>
                       <div className="text-sm text-gray-600 dark:text-gray-400">
-                        Showing {sortedAndPaginatedSales.length} of {detailedSalesRows.length} transactions
+                        Showing {sortedAndPaginatedSales.length} of {filteredAndSortedSales.length} transactions
                       </div>
                     </div>
 
@@ -927,10 +990,10 @@ export default function SalesPerformanceCard() {
                       <>
                         {/* Transaction Cards */}
                         <div className="grid grid-cols-1 gap-4">
-                          {sortedAndPaginatedSales.map((sale: any, index: number) => {
+                          {sortedAndPaginatedSales.map((transaction: any, index: number) => {
                             const rowNumber = (currentPage - 1) * itemsPerPage + index + 1;
                             return (
-                              <Card key={sale.id || index} className="border border-gray-200 dark:border-gray-700">
+                              <Card key={transaction.transactionNo || index} className="border border-gray-200 dark:border-gray-700">
                                 <CardBody className="p-4">
                                   <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
                                     {/* Left Section - Transaction Info */}
@@ -941,17 +1004,17 @@ export default function SalesPerformanceCard() {
                                             <Chip size="sm" variant="flat" color="default">
                                               #{rowNumber}
                                             </Chip>
-                                            {sale.isVoided && (
+                                            {transaction.isVoided && (
                                               <Chip size="sm" variant="flat" color="danger">
                                                 Voided
                                               </Chip>
                                             )}
-                                            {sale.isFullyReturned && (
+                                            {transaction.isFullyReturned && (
                                               <Chip size="sm" variant="flat" color="warning">
                                                 Returned
                                               </Chip>
                                             )}
-                                            {!sale.isFullyReturned && !sale.isVoided && sale.returnedQuantity > 0 && (
+                                            {transaction.hasReturns && !transaction.isFullyReturned && (
                                               <Chip size="sm" variant="flat" color="warning">
                                                 Partial Return
                                               </Chip>
@@ -961,13 +1024,19 @@ export default function SalesPerformanceCard() {
                                             <div className="flex items-center gap-2">
                                               <Calendar className="h-4 w-4 text-gray-400" />
                                               <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                                                {new Date(sale.dateTime).toLocaleString()}
+                                                {new Date(transaction.dateTime).toLocaleString()}
                                               </span>
                                             </div>
                                             <div className="flex items-center gap-2">
                                               <Hash className="h-4 w-4 text-gray-400" />
                                               <span className="text-sm font-mono text-gray-700 dark:text-gray-300">
-                                                {sale.transactionNo}
+                                                {transaction.transactionNo}
+                                              </span>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                              <User className="h-4 w-4 text-gray-400" />
+                                              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                                {transaction.handledBy || "N/A"}
                                               </span>
                                             </div>
                                           </div>
@@ -975,30 +1044,17 @@ export default function SalesPerformanceCard() {
                                       </div>
                                     </div>
 
-                                    {/* Middle Section - Product Info */}
+                                    {/* Middle Section - Transaction Summary */}
                                     <div className="md:col-span-4 space-y-3">
                                       <div className="space-y-1.5">
                                         <div className="flex items-center gap-2">
                                           <Package className="h-4 w-4 text-gray-400" />
                                           <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-                                            {sale.productName}
+                                            {transaction.itemCount} {transaction.itemCount === 1 ? 'Item' : 'Items'}
                                           </span>
                                         </div>
-                                        <div className="text-xs text-gray-600 dark:text-gray-400 font-mono ml-6">
-                                          Barcode: {sale.barcode}
-                                        </div>
-                                        <div className="flex items-center gap-4 ml-6">
-                                          <div>
-                                            <span className="text-xs text-gray-500 dark:text-gray-400">Quantity: </span>
-                                            <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-                                              {sale.quantity}
-                                            </span>
-                                            {sale.returnedQuantity > 0 && (
-                                              <span className="text-xs text-orange-600 dark:text-orange-400 ml-2">
-                                                ({sale.returnedQuantity} returned, {sale.remainingQuantity} remaining)
-                                              </span>
-                                            )}
-                                          </div>
+                                        <div className="text-xs text-gray-600 dark:text-gray-400 ml-6">
+                                          Total Quantity: {transaction.totalQuantity}
                                         </div>
                                       </div>
                                     </div>
@@ -1006,30 +1062,25 @@ export default function SalesPerformanceCard() {
                                     {/* Right Section - Pricing & Actions */}
                                     <div className="md:col-span-3 space-y-3">
                                       <div className="space-y-1.5">
-                                        <div className="flex items-center justify-between">
-                                          <span className="text-xs text-gray-500 dark:text-gray-400">Unit Price:</span>
-                                          <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                                            ₱{sale.unitPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                          </span>
-                                        </div>
                                         <div className="flex items-center justify-between pt-2 border-t border-gray-200 dark:border-gray-700">
                                           <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Total:</span>
                                           <span className="text-lg font-bold text-gray-900 dark:text-gray-100">
-                                            ₱{sale.total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                            ₱{transaction.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                           </span>
                                         </div>
                                       </div>
                                       <div className="pt-2">
                                         <Button
                                           size="sm"
-                                          color="warning"
+                                          color="primary"
                                           variant="flat"
-                                          startContent={<RotateCcw className="h-4 w-4" />}
-                                          onPress={() => handleReturnClick(sale)}
-                                          isDisabled={sale.isFullyReturned || sale.isVoided}
+                                          onPress={() => {
+                                            setSelectedTransaction(transaction);
+                                            setIsTransactionDetailOpen(true);
+                                          }}
                                           className="w-full"
                                         >
-                                          {sale.isVoided ? "Voided" : sale.isFullyReturned ? "Returned" : "Return Item"}
+                                          View Details
                                         </Button>
                                       </div>
                                     </div>
@@ -1278,36 +1329,75 @@ export default function SalesPerformanceCard() {
               >
                 <div className="space-y-6 pt-4">
                   <div className="flex items-center gap-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                    <div className="grid grid-cols-2 gap-4 flex-1">
+                    <div className="grid grid-cols-3 gap-4 flex-1">
                       <Input
                         type="datetime-local"
-                        label="From"
+                        label="From (Optional)"
                         labelPlacement="outside"
-                        value={reportDateFrom}
-                        onChange={(e) => setReportDateFrom(e.target.value)}
+                        placeholder="Click to select start date"
+                        value={reportDateFrom || ""}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setReportDateFrom(val || "");
+                        }}
+                        onBlur={(e) => {
+                          if (!e.target.value) {
+                            setReportDateFrom("");
+                          }
+                        }}
                         size="sm"
+                        description="Leave empty to show all void items"
                       />
                       <Input
                         type="datetime-local"
-                        label="To"
+                        label="To (Optional)"
                         labelPlacement="outside"
-                        value={reportDateTo}
-                        onChange={(e) => setReportDateTo(e.target.value)}
+                        placeholder="Click to select end date"
+                        value={reportDateTo || ""}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setReportDateTo(val || "");
+                        }}
+                        onBlur={(e) => {
+                          if (!e.target.value) {
+                            setReportDateTo("");
+                          }
+                        }}
                         size="sm"
+                        description="Leave empty to show all void items"
                       />
+                      <Select
+                        label="Handled By (Optional)"
+                        labelPlacement="outside"
+                        placeholder="All users"
+                        selectedKeys={voidItemsHandledByFilter ? [voidItemsHandledByFilter] : []}
+                        onSelectionChange={(keys) => {
+                          const selected = Array.from(keys)[0] as string;
+                          setVoidItemsHandledByFilter(selected || "");
+                        }}
+                        size="sm"
+                        description="Filter by user who voided the transaction"
+                      >
+                        {uniqueUsers.map((user) => (
+                          <SelectItem key={user}>
+                            {user}
+                          </SelectItem>
+                        ))}
+                      </Select>
                     </div>
                   </div>
                   <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
                     <DataTable
                       columns={[
-                        { key: "#", header: "#", sortable: false, renderCell: (_: any, i: number) => i },
+                        { key: "#", header: "#", sortable: false, renderCell: (_: any, i: number) => i + 1 },
                         { key: "date", header: "Date", sortable: true, renderCell: (r: any) => new Date(r.date).toLocaleDateString() },
                         { key: "transactionNo", header: "Transaction No.", sortable: true },
                         { key: "productName", header: "Product Name", sortable: true },
                         { key: "quantity", header: "Quantity", sortable: true },
                         { key: "voidAmount", header: "Void Amount (₱)", sortable: true, renderCell: (r: any) => `₱${r.voidAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` },
+                        { key: "handledBy", header: "Handled By", sortable: true, renderCell: (r: any) => r.handledBy || "-" },
                       ] as any}
-                      data={voidItemsRows}
+                      data={filteredVoidItems}
                       label="Void Items"
                       isLoading={!voidItemsData && activeTab === "void-items"}
                     />
@@ -1506,6 +1596,147 @@ export default function SalesPerformanceCard() {
             >
               Process Return
             </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+
+      {/* Transaction Detail Modal */}
+      <Modal isOpen={isTransactionDetailOpen} onClose={() => setIsTransactionDetailOpen(false)} size="4xl" scrollBehavior="inside">
+        <ModalContent>
+          <ModalHeader className="flex items-center gap-3 border-b dark:border-gray-700 py-3.5">
+            <div className="p-2 rounded-lg bg-blue-500/10 dark:bg-blue-500/20">
+              <FileText className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">Transaction Details</h2>
+              {selectedTransaction && (
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  {selectedTransaction.transactionNo} • {new Date(selectedTransaction.dateTime).toLocaleString()}
+                </p>
+              )}
+            </div>
+          </ModalHeader>
+          <ModalBody className="py-4">
+            {selectedTransaction && (
+              <div className="space-y-3">
+                {/* Transaction Summary */}
+                <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">Items</div>
+                      <div className="text-base font-bold text-gray-900 dark:text-gray-100">{selectedTransaction.itemCount}</div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">Total Quantity</div>
+                      <div className="text-base font-bold text-gray-900 dark:text-gray-100">{selectedTransaction.totalQuantity}</div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">Handled By</div>
+                      <div className="text-base font-bold text-gray-900 dark:text-gray-100">{selectedTransaction.handledBy || "N/A"}</div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">Total Amount</div>
+                      <div className="text-base font-bold text-green-600 dark:text-green-400">
+                        ₱{selectedTransaction.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Products List */}
+                <div className="space-y-2.5">
+                  <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Products in this Transaction</h3>
+                  {selectedTransaction.items.map((item: any, idx: number) => (
+                    <Card key={item.id} className="border border-gray-200 dark:border-gray-700">
+                      <CardBody className="p-3">
+                        <div className="flex flex-col md:flex-row md:items-center gap-3">
+                          {/* Left: Number & Product Info */}
+                          <div className="flex items-center gap-2 md:flex-1">
+                            <Chip size="sm" variant="flat" color="default">
+                              #{idx + 1}
+                            </Chip>
+                            <div className="flex items-center gap-2 flex-1">
+                              <Package className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                              <div className="flex-1 min-w-0">
+                                <div className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">
+                                  {item.productName}
+                                </div>
+                                <div className="text-xs text-gray-500 dark:text-gray-400">
+                                  {item.barcode} • Qty: {item.quantity}
+                                  {item.returnedQuantity > 0 && (
+                                    <span className="text-orange-600 dark:text-orange-400 ml-1">
+                                      ({item.returnedQuantity} ret, {item.remainingQuantity} rem)
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                            {(item.returnedQuantity > 0 && item.remainingQuantity <= 0) && (
+                              <Chip size="sm" variant="flat" color="warning">
+                                Returned
+                              </Chip>
+                            )}
+                            {(item.returnedQuantity > 0 && item.remainingQuantity > 0) && (
+                              <Chip size="sm" variant="flat" color="warning">
+                                Partial
+                              </Chip>
+                            )}
+                          </div>
+
+                          {/* Middle: Pricing */}
+                          <div className="flex items-center gap-4 text-sm">
+                            <div className="text-center">
+                              <div className="text-xs text-gray-500 dark:text-gray-400">Unit</div>
+                              <div className="font-medium text-gray-900 dark:text-gray-100">
+                                ₱{item.unitPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </div>
+                            </div>
+                            <div className="text-center">
+                              <div className="text-xs text-gray-500 dark:text-gray-400">Total</div>
+                              <div className="font-bold text-gray-900 dark:text-gray-100">
+                                ₱{item.total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Right: Action Button */}
+                          <div>
+                            <Button
+                              size="sm"
+                              color="warning"
+                              variant="flat"
+                              startContent={<RotateCcw className="h-4 w-4" />}
+                              onPress={() => {
+                                const saleForReturn = {
+                                  id: item.id,
+                                  productId: item.productId,
+                                  productName: item.productName,
+                                  quantity: item.quantity,
+                                  remainingQuantity: item.remainingQuantity,
+                                  returnedQuantity: item.returnedQuantity,
+                                  unitPrice: item.unitPrice,
+                                  transactionNo: selectedTransaction.transactionNo,
+                                  dateTime: selectedTransaction.dateTime,
+                                };
+                                setIsTransactionDetailOpen(false);
+                                handleReturnClick(saleForReturn);
+                              }}
+                              isDisabled={item.remainingQuantity <= 0}
+                              className="min-w-[100px]"
+                            >
+                              {item.remainingQuantity <= 0 ? "Returned" : "Return"}
+                            </Button>
+                          </div>
+                        </div>
+                      </CardBody>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            )}
+          </ModalBody>
+          <ModalFooter className="border-t dark:border-gray-700 py-3">
+            <Button color="default" variant="light" onPress={() => setIsTransactionDetailOpen(false)}>Close</Button>
           </ModalFooter>
         </ModalContent>
       </Modal>

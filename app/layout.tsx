@@ -8,6 +8,7 @@ import type { Metadata } from 'next'
 import { Providers } from "./providers";
 import { ThemeSwitch } from "@/components/ThemeSwitch";
 import SearchModal from "@/components/SearchModal";
+import SplashScreen from "@/components/SplashScreen";
 
 const poppins = Poppins({
   subsets: ["latin"],
@@ -36,6 +37,7 @@ export default function RootLayout({
     <html suppressHydrationWarning lang="en" className={poppins.variable}>
       <head />
       <body className={`bg-white text-gray-900 dark:bg-gray-900 dark:text-gray-100 font-poppins ${poppins.className}`}>
+        <SplashScreen />
         <Providers themeProps={{ attribute: "class", defaultTheme: "system" }}>
           <ConditionalLayout>
             {children}

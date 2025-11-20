@@ -19,10 +19,12 @@ export type ReceiptModalProps = {
             quantity: number;
         }>;
         subtotal: number;
+        discount?: number;
         total: number;
         amountReceived?: number;
         change?: number;
         timestamp?: Date;
+        transactionNo?: string;
     };
 };
 
@@ -123,6 +125,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ isOpen, onClose, rec
 
                     <div class="totals">
                         <div class="row"><span>Subtotal</span><span>${formatCurrency(receiptData.subtotal)}</span></div>
+                        ${receiptData.discount && receiptData.discount > 0 ? `<div class="row"><span>Discount</span><span>-${formatCurrency(receiptData.discount)}</span></div>` : ''}
                         <div class="sep"></div>
                         <div class="row em"><span>Total</span><span>${formatCurrency(receiptData.total)}</span></div>
                     </div>
@@ -135,6 +138,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ isOpen, onClose, rec
                     <hr />
 
                     <div class="footer">
+                        ${receiptData.transactionNo ? `<div class="small">Transaction No: ${receiptData.transactionNo}</div>` : ''}
                         <div class="small"># ITEMS SOLD ${receiptData.items.reduce((s, i) => s + i.quantity, 0)}</div>
                         <div class="small">${receiptData.timestamp ? receiptData.timestamp.toLocaleDateString() + ' ' + receiptData.timestamp.toLocaleTimeString() : new Date().toLocaleDateString() + ' ' + new Date().toLocaleTimeString()}</div>
                         <div class="thanks">Thank you for your purchase!</div>
@@ -224,6 +228,12 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ isOpen, onClose, rec
                                 <span>Subtotal</span>
                                 <span>{formatCurrency(receiptData.subtotal)}</span>
                             </div>
+                            {receiptData.discount && receiptData.discount > 0 && (
+                                <div className="flex justify-between">
+                                    <span>Discount</span>
+                                    <span className="text-red-600 dark:text-red-400">-{formatCurrency(receiptData.discount)}</span>
+                                </div>
+                            )}
                             <hr className="border-dashed border-gray-300 my-1" />
                             <div className="flex justify-between font-bold text-sm">
                                 <span>Total</span>
@@ -249,6 +259,9 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ isOpen, onClose, rec
                         <hr className="border-dashed border-gray-300 my-2" />
 
                         <div className="text-center text-xs text-gray-700">
+                            {receiptData.transactionNo && (
+                                <div>Transaction No: {receiptData.transactionNo}</div>
+                            )}
                             <div># ITEMS SOLD {itemsSold}</div>
                             <div>
                                 {receiptData.timestamp 

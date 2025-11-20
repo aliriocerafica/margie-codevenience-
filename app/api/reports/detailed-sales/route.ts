@@ -39,48 +39,22 @@ export async function GET(req: NextRequest) {
       },
     });
 
-    // Identify voided sales by checking for void StockMovements
-    // A sale is considered voided if there's a void StockMovement for the same product within 24 hours
-    const voidMovementWhere: any = {
-      type: "void",
-    };
-    
-    if (dateFrom || dateTo) {
-      voidMovementWhere.createdAt = {};
-      if (dateFrom) voidMovementWhere.createdAt.gte = new Date(dateFrom);
-      if (dateTo) {
-        const to = new Date(dateTo);
-        if (!dateTo.includes("T")) {
-          to.setHours(23, 59, 59, 999);
-        }
-        voidMovementWhere.createdAt.lte = to;
-      }
-    }
-    
-    const voidMovements = await (prisma as any).stockMovement.findMany({
-      where: voidMovementWhere,
+    // Fetch user information for all unique userIds
+    const userIds = Array.from(new Set(sales.map(s => s.userId).filter(Boolean) as string[]));
+    const users = await prisma.user.findMany({
+      where: {
+        id: { in: userIds },
+      },
       select: {
-        productId: true,
-        createdAt: true,
+        id: true,
+        email: true,
       },
     });
+    const userMap = new Map(users.map(u => [u.id, u.email]));
 
-    // Create a map of voided sale IDs to void dates (for display)
-    const voidedSaleInfo = new Map<string, Date>();
-    
-    // Match void movements to sales by product and time proximity (within 24 hours)
-    for (const voidMov of voidMovements) {
-      const matchingSale = sales.find(sale => 
-        sale.productId === voidMov.productId &&
-        Math.abs(new Date(sale.createdAt).getTime() - new Date(voidMov.createdAt).getTime()) < 24 * 60 * 60 * 1000
-      );
-      if (matchingSale) {
-        // Store the void date (when the void happened)
-        voidedSaleInfo.set(matchingSale.id, voidMov.createdAt);
-      }
-    }
-
-    // Also check void sales directly
+    // Get all void transactions to exclude their corresponding original sales
+    // Void transactions have refId format: void-{timestamp}
+    // Original sales have refId format: checkout-{timestamp}
     const voidSales = await prisma.sale.findMany({
       where: {
         quantity: { lt: 0 },
@@ -88,24 +62,29 @@ export async function GET(req: NextRequest) {
       },
       select: {
         refId: true,
-        productId: true,
-        createdAt: true,
       },
     });
 
+    // Extract timestamps from void transactions
+    const voidedTimestamps = new Set<string>();
     voidSales.forEach(voidSale => {
-      // Try to find the original sale that was voided
-      const matchingSale = sales.find(sale =>
-        sale.productId === voidSale.productId &&
-        Math.abs(new Date(sale.createdAt).getTime() - new Date(voidSale.createdAt).getTime()) < 24 * 60 * 60 * 1000
-      );
-      if (matchingSale && !voidedSaleInfo.has(matchingSale.id)) {
-        voidedSaleInfo.set(matchingSale.id, voidSale.createdAt);
+      if (voidSale.refId && voidSale.refId.startsWith("void-")) {
+        // Extract timestamp from void-{timestamp}
+        const timestamp = voidSale.refId.replace("void-", "");
+        voidedTimestamps.add(timestamp);
       }
     });
 
-    // Keep all sales (including voided ones) for transparency
-    const validSales = sales;
+    // Filter out sales that have been voided
+    const validSales = sales.filter(sale => {
+      if (!sale.refId || !sale.refId.startsWith("checkout-")) {
+        return true; // Keep sales without standard refId format
+      }
+      // Extract timestamp from checkout-{timestamp}
+      const timestamp = sale.refId.replace("checkout-", "");
+      // Exclude if this timestamp exists in void transactions
+      return !voidedTimestamps.has(timestamp);
+    });
 
     // Check for returns for each sale
     // Returns have refId pattern: return-{originalSaleRefId || originalSaleId}-{timestamp}
@@ -146,30 +125,91 @@ export async function GET(req: NextRequest) {
       }
     });
 
-    const rows = validSales.map((sale) => {
+    // Group sales by transaction number (refId)
+    const transactionMap = new Map<string, {
+      transactionNo: string;
+      dateTime: Date;
+      items: Array<{
+        id: string;
+        productId: string;
+        productName: string;
+        barcode: string;
+        quantity: number;
+        returnedQuantity: number;
+        remainingQuantity: number;
+        unitPrice: number;
+        total: number;
+      }>;
+      totalAmount: number;
+      totalQuantity: number;
+      handledBy: string | null;
+      isVoided: boolean;
+      hasReturns: boolean;
+      isFullyReturned: boolean;
+    }>();
+
+    validSales.forEach((sale) => {
+      const transactionNo = sale.refId || sale.id;
       const returnedQty = returnedQuantities.get(sale.id) || 0;
       const remainingQty = sale.quantity - returnedQty;
-      const isFullyReturned = remainingQty <= 0;
-      const isVoided = voidedSaleInfo.has(sale.id);
-      const voidedDate = voidedSaleInfo.get(sale.id);
       
-      return {
-        id: sale.id, // Include sale ID for return functionality
-        dateTime: sale.createdAt,
-        transactionNo: sale.refId || sale.id,
+      if (!transactionMap.has(transactionNo)) {
+        transactionMap.set(transactionNo, {
+          transactionNo,
+          dateTime: sale.createdAt,
+          items: [],
+          totalAmount: 0,
+          totalQuantity: 0,
+          handledBy: sale.userId ? userMap.get(sale.userId) || "Unknown" : null,
+          isVoided: false,
+          hasReturns: false,
+          isFullyReturned: false,
+        });
+      }
+
+      const transaction = transactionMap.get(transactionNo)!;
+      
+      transaction.items.push({
+        id: sale.id,
+        productId: sale.productId,
         productName: sale.product?.name || "Unknown Product",
         barcode: sale.product?.barcode || "-",
-        quantity: sale.quantity, // Original quantity
-        returnedQuantity: returnedQty, // How much has been returned
-        remainingQuantity: Math.max(0, remainingQty), // How much can still be returned
-        isFullyReturned, // Flag if fully returned
-        isVoided, // Flag if voided
-        voidedDate: voidedDate ? voidedDate.toISOString() : null, // When it was voided
+        quantity: sale.quantity,
+        returnedQuantity: returnedQty,
+        remainingQuantity: Math.max(0, remainingQty),
         unitPrice: sale.unitPrice,
         total: sale.totalAmount,
-        productId: sale.productId, // Include product ID for returns
-      };
+      });
+
+      transaction.totalAmount += sale.totalAmount;
+      transaction.totalQuantity += sale.quantity;
+      
+      if (returnedQty > 0) {
+        transaction.hasReturns = true;
+      }
+      
+      if (remainingQty <= 0) {
+        transaction.isFullyReturned = true;
+      } else {
+        transaction.isFullyReturned = false; // If any item is not fully returned, transaction is not fully returned
+      }
     });
+
+    // Convert map to array and sort by date (newest first)
+    const rows = Array.from(transactionMap.values())
+      .sort((a, b) => new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime())
+      .map(transaction => ({
+        transactionNo: transaction.transactionNo,
+        dateTime: transaction.dateTime,
+        items: transaction.items,
+        itemCount: transaction.items.length,
+        totalQuantity: transaction.totalQuantity,
+        totalAmount: transaction.totalAmount,
+        handledBy: transaction.handledBy,
+        isVoided: transaction.isVoided,
+        hasReturns: transaction.hasReturns,
+        isFullyReturned: transaction.isFullyReturned,
+      }));
 
     return NextResponse.json({ rows });
   } catch (error) {

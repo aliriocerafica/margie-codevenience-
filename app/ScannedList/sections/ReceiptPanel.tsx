@@ -1,27 +1,60 @@
 "use client";
 
 import React, { useMemo, useState } from "react";
+import { useSession } from "next-auth/react";
 import { ReceiptSummary } from "../components/ReceiptSummary";
 import { ScannedProduct } from "../components/ScannedProductsTable";
 import { ReceiptModal } from "../components/ReceiptModal";
+import { AdminAuthModal } from "../components/AdminAuthModal";
+import { VoidRequestModal } from "../components/VoidRequestModal";
 import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button } from "@heroui/react";
 import { useNotifications } from "@/contexts/NotificationContext";
 
 export type ReceiptPanelProps = {
     items: ScannedProduct[];
     onClearItems: () => void;
+    onClearItemsSilent: () => void;
 };
 
-export const ReceiptPanel: React.FC<ReceiptPanelProps> = ({ items, onClearItems }) => {
+export const ReceiptPanel: React.FC<ReceiptPanelProps> = ({ items, onClearItems, onClearItemsSilent }) => {
+    const { data: session } = useSession();
     const [amountReceived, setAmountReceived] = useState<number>(0);
+    const [discount, setDiscount] = useState<number>(0);
     const [isConfirmOpen, setIsConfirmOpen] = useState(false);
     const [isReceiptOpen, setIsReceiptOpen] = useState(false);
     const [receiptData, setReceiptData] = useState<any>(null);
     const [pendingSummary, setPendingSummary] = useState<{ low: number; out: number } | null>(null);
     const [pendingItems, setPendingItems] = useState<{ productId: string; quantity: number }[]>([]);
+    const [originalTransactionNo, setOriginalTransactionNo] = useState<string | null>(null);
     const [isProcessing, setIsProcessing] = useState(false);
     const [processingAction, setProcessingAction] = useState<"complete" | "void" | null>(null);
     const { refreshNotifications } = useNotifications();
+    
+    // Void approval modals
+    const [isVoidRequestModalOpen, setIsVoidRequestModalOpen] = useState(false);
+    const [isAdminAuthModalOpen, setIsAdminAuthModalOpen] = useState(false);
+    const [userRole, setUserRole] = useState<string | null>(null);
+
+    // Fetch user role
+    React.useEffect(() => {
+        const fetchUserRole = async () => {
+            if (session?.user?.email) {
+                try {
+                    const response = await fetch(`/api/users?email=${session.user.email}`);
+                    if (response.ok) {
+                        const users = await response.json();
+                        const currentUser = users.find((u: any) => u.email === session.user.email);
+                        if (currentUser) {
+                            setUserRole(currentUser.role);
+                        }
+                    }
+                } catch (error) {
+                    console.error("Error fetching user role:", error);
+                }
+            }
+        };
+        fetchUserRole();
+    }, [session]);
 
     const subtotal = useMemo(() => {
         return items.reduce((sum, item) => {
@@ -29,6 +62,10 @@ export const ReceiptPanel: React.FC<ReceiptPanelProps> = ({ items, onClearItems 
             return sum + unit * item.quantity;
         }, 0);
     }, [items]);
+
+    const total = useMemo(() => {
+        return Math.max(0, subtotal - discount);
+    }, [subtotal, discount]);
 
     const handleCheckout = async () => {
         if (!items || items.length === 0) {
@@ -39,14 +76,22 @@ export const ReceiptPanel: React.FC<ReceiptPanelProps> = ({ items, onClearItems 
             });
             return;
         }
-
-        const total = subtotal;
         
         // Validate amount received
         if (amountReceived <= 0) {
             showNotification({
                 title: 'Amount Received Required',
                 description: 'Please enter the amount received before proceeding with checkout.',
+                type: 'error'
+            });
+            return;
+        }
+
+        // Validate that amount received is sufficient
+        if (amountReceived < total) {
+            showNotification({
+                title: 'Insufficient Amount',
+                description: `Amount received (₱${amountReceived.toFixed(2)}) is less than total (₱${total.toFixed(2)}). Please enter a sufficient amount.`,
                 type: 'error'
             });
             return;
@@ -95,7 +140,7 @@ export const ReceiptPanel: React.FC<ReceiptPanelProps> = ({ items, onClearItems 
             // Immediately refresh notifications to show new stock alerts
             try { await refreshNotifications(); } catch {}
 
-            // Set receipt data and open modal
+            // Set receipt data (but don't open modal yet - wait for "Checkout Done")
             setReceiptData({
                 storeName: "Margie CodeVenience",
                 storePhone: "",
@@ -108,17 +153,19 @@ export const ReceiptPanel: React.FC<ReceiptPanelProps> = ({ items, onClearItems 
                     quantity: i.quantity,
                 })),
                 subtotal,
+                discount,
                 total,
                 amountReceived,
                 change,
                 timestamp: new Date(),
+                transactionNo: data.transactionNo,
             });
-            setIsReceiptOpen(true);
 
             const lowCount = (data?.summary?.lowNow ?? []).length;
             const outCount = (data?.summary?.outNow ?? []).length;
             setPendingSummary({ low: lowCount, out: outCount });
             setPendingItems(items.map(i => ({ productId: i.id, quantity: i.quantity })));
+            setOriginalTransactionNo(data.transactionNo); // Store for potential void
             setIsConfirmOpen(true);
         } catch (e) {
             console.error(e);
@@ -165,22 +212,43 @@ export const ReceiptPanel: React.FC<ReceiptPanelProps> = ({ items, onClearItems 
             setIsConfirmOpen(false);
             setPendingSummary(null);
             setPendingItems([]);
+            setOriginalTransactionNo(null); // Clear original transaction number
             setAmountReceived(0);
-            onClearItems();
+            setDiscount(0);
+            onClearItemsSilent(); // Clear without confirmation after checkout done
+            // Open receipt modal after checkout is confirmed complete
+            setIsReceiptOpen(true);
         } finally {
             setIsProcessing(false);
             setProcessingAction(null);
         }
     };
 
-    const handleVoid = async () => {
+    const handleVoidClick = () => {
+        // Check user role
+        if (userRole === "Staff") {
+            // Staff needs admin approval
+            setIsConfirmOpen(false);
+            setIsVoidRequestModalOpen(true);
+        } else {
+            // Admin can void directly (with confirmation)
+            handleVoidDirect();
+        }
+    };
+
+    const handleVoidDirect = async (approvedBy?: string) => {
         try {
             setProcessingAction('void');
             setIsProcessing(true);
             await fetch('/api/checkout', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ items: pendingItems, action: 'void' })
+                body: JSON.stringify({ 
+                    items: pendingItems, 
+                    action: 'void',
+                    originalTransactionNo: originalTransactionNo,
+                    approvedBy: approvedBy // Log who approved (for on-site admin auth)
+                })
             });
             showNotification({
                 title: 'Checkout Voided',
@@ -193,23 +261,114 @@ export const ReceiptPanel: React.FC<ReceiptPanelProps> = ({ items, onClearItems 
             setIsConfirmOpen(false);
             setPendingSummary(null);
             setPendingItems([]);
-            onClearItems();
+            setOriginalTransactionNo(null);
+            setReceiptData(null);
+            setAmountReceived(0);
+            setDiscount(0);
+            onClearItemsSilent(); // Clear without confirmation after void
             setIsProcessing(false);
             setProcessingAction(null);
         }
     };
 
+    const handleOnSiteApproval = () => {
+        setIsVoidRequestModalOpen(false);
+        setIsAdminAuthModalOpen(true);
+    };
+
+    const handleVoidRequestModalClose = () => {
+        // Just close the void request modal and return to confirmation modal
+        // Don't void the transaction - let user decide what to do
+        setIsVoidRequestModalOpen(false);
+        setIsConfirmOpen(true); // Return to confirmation modal
+    };
+
+    const handleRemoteApproval = async (reason: string) => {
+        try {
+            const response = await fetch('/api/void-requests', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    transactionNo: originalTransactionNo,
+                    reason,
+                    transactionData: {
+                        items: pendingItems,
+                        totalAmount: total,
+                        receiptData,
+                    },
+                }),
+            });
+
+            if (response.ok) {
+                showNotification({
+                    title: 'Void Request Sent',
+                    description: 'Your void request has been sent to admin for approval.',
+                    type: 'success'
+                });
+                
+                // Trigger custom event to notify sidebar to refresh void request count
+                window.dispatchEvent(new CustomEvent('voidRequestCreated'));
+                
+                // Close modals and clear state
+                setIsVoidRequestModalOpen(false);
+                setIsConfirmOpen(false);
+                setPendingSummary(null);
+                setPendingItems([]);
+                setOriginalTransactionNo(null);
+                setReceiptData(null);
+                setAmountReceived(0);
+                setDiscount(0);
+                onClearItemsSilent(); // Clear without confirmation after sending void request
+            } else {
+                showNotification({
+                    title: 'Request Failed',
+                    description: 'Failed to send void request. Please try again.',
+                    type: 'error'
+                });
+            }
+        } catch (error) {
+            console.error('Error sending void request:', error);
+            showNotification({
+                title: 'Request Failed',
+                description: 'Failed to send void request. Please try again.',
+                type: 'error'
+            });
+        }
+    };
+
+    const handleAdminAuthModalClose = () => {
+        // Just close the admin auth modal and return to confirmation modal
+        // Don't void the transaction - let user decide what to do
+        setIsAdminAuthModalOpen(false);
+        setIsConfirmOpen(true); // Return to confirmation modal
+    };
+
+    const handleAdminVerified = (adminId: string, adminEmail: string) => {
+        setIsAdminAuthModalOpen(false);
+        handleVoidDirect(adminId);
+    };
+
     const handleClear = () => {
         onClearItems();
         setAmountReceived(0);
+        setDiscount(0);
     };
 
-    const total = subtotal;
     const change = Math.max(0, amountReceived - total);
 
     return (
         <div className="space-y-4">
             <div className="rounded-xl border border-gray-200 dark:border-gray-800 p-5 bg-white dark:bg-gray-900 space-y-3">
+                <div className="flex items-center justify-between">
+                    <label className="text-sm text-gray-600 dark:text-gray-400">Discount (₱)</label>
+                    <input 
+                        type="number" 
+                        className="w-32 h-10 rounded-lg border border-gray-200 dark:border-gray-800 bg-transparent px-3"
+                        value={discount}
+                        onChange={e => setDiscount(Math.max(0, Number(e.target.value || 0)))}
+                        min={0}
+                    />
+                </div>
                 <div className="flex items-center justify-between">
                     <label className="text-sm text-gray-600 dark:text-gray-400">Amount Received (₱)</label>
                     <input 
@@ -224,6 +383,7 @@ export const ReceiptPanel: React.FC<ReceiptPanelProps> = ({ items, onClearItems 
 
             <ReceiptSummary 
                 subtotal={subtotal}
+                discount={discount}
                 amountReceived={amountReceived}
                 change={change}
                 additionalFees={[]}
@@ -271,7 +431,7 @@ export const ReceiptPanel: React.FC<ReceiptPanelProps> = ({ items, onClearItems 
                         <Button 
                             variant="light" 
                             color="danger" 
-                            onPress={handleVoid}
+                            onPress={handleVoidClick}
                             isDisabled={isProcessing}
                             isLoading={isProcessing && processingAction === 'void'}
                         >
@@ -297,6 +457,27 @@ export const ReceiptPanel: React.FC<ReceiptPanelProps> = ({ items, onClearItems 
                     receiptData={receiptData}
                 />
             )}
+
+            {/* Void Request Modal (On-Site or Remote) */}
+            <VoidRequestModal
+                isOpen={isVoidRequestModalOpen}
+                onClose={handleVoidRequestModalClose}
+                onSelectOnSite={handleOnSiteApproval}
+                onSelectRemote={handleRemoteApproval}
+                transactionData={{
+                    transactionNo: originalTransactionNo,
+                    totalAmount: total,
+                }}
+            />
+
+            {/* Admin Auth Modal (On-Site Approval) */}
+            <AdminAuthModal
+                isOpen={isAdminAuthModalOpen}
+                onClose={handleAdminAuthModalClose}
+                onVerified={handleAdminVerified}
+                title="Admin Authorization for Void"
+                description="Enter admin credentials to authorize voiding this transaction."
+            />
         </div>
     );
 };

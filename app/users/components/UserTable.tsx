@@ -2,7 +2,7 @@
 
 import React from "react";
 import { Chip, Button, Tooltip } from "@heroui/react";
-import { Edit, Trash2 } from "lucide-react";
+import { Edit } from "lucide-react";
 
 import DataTable from "@/components/DataTable";
 
@@ -22,23 +22,6 @@ interface UserTableProps {
   onEdit?: (user: User) => void;
   onDelete?: (user: User) => void;
 }
-
-const USER_ROLE_COLORS = {
-  Admin: "warning",
-  Staff: "primary",
-} as const;
-
-const USER_ROLE_OPTIONS = [
-  { key: "all", label: "All Roles" },
-  { key: "Admin", label: "Admin" },
-  { key: "Staff", label: "Staff" },
-];
-
-const USER_STATUS_OPTIONS = [
-  { key: "all", label: "All Status" },
-  { key: "active", label: "Active" },
-  { key: "inactive", label: "Inactive" },
-];
 
 export const UserTable: React.FC<UserTableProps> = ({
   data,
@@ -66,27 +49,6 @@ export const UserTable: React.FC<UserTableProps> = ({
             ID: {row.id.slice(0, 8)}...
           </p>
         </div>
-      ),
-    },
-    {
-      key: "role",
-      header: "Role",
-      renderCell: (row: User) => (
-        <Chip
-          className={`${
-            row.role === "Admin"
-              ? "bg-yellow-50 dark:bg-yellow-950 text-yellow-700 dark:text-yellow-300"
-              : "bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300"
-          }`}
-          color={
-            USER_ROLE_COLORS[row.role as keyof typeof USER_ROLE_COLORS] ||
-            "default"
-          }
-          size="sm"
-          variant="flat"
-        >
-          {row.role}
-        </Chip>
       ),
     },
     {
@@ -139,7 +101,7 @@ export const UserTable: React.FC<UserTableProps> = ({
       key: "actions",
       header: "Actions",
       renderCell: (row: User) => (
-        <div className="flex items-center gap-1 justify-end w-24">
+        <div className="flex items-center gap-1 justify-end">
           <Tooltip content="Edit" placement="top">
             <Button
               isIconOnly
@@ -149,17 +111,6 @@ export const UserTable: React.FC<UserTableProps> = ({
               onPress={() => onEdit?.(row)}
             >
               <Edit size={16} />
-            </Button>
-          </Tooltip>
-          <Tooltip content="Delete" placement="top">
-            <Button
-              isIconOnly
-              size="sm"
-              variant="flat"
-              color="danger"
-              onPress={() => onDelete?.(row)}
-            >
-              <Trash2 size={16} />
             </Button>
           </Tooltip>
         </div>
@@ -173,13 +124,10 @@ export const UserTable: React.FC<UserTableProps> = ({
         <DataTable
           columns={columns}
           data={[]}
-          description="Loading users..."
+          description="Loading staff users..."
           filter={true}
           isLoading={true}
-          label="User List"
-          statusOptions={USER_ROLE_OPTIONS}
-          filterKey="role"
-          filterLabel="Filter Role"
+          label="Staff List"
           showColumnFilter={false}
         />
       </div>
@@ -192,13 +140,10 @@ export const UserTable: React.FC<UserTableProps> = ({
         <DataTable
           columns={columns}
           data={[]}
-          description="Failed to load users."
+          description="Failed to load staff users."
           error={error}
           filter={true}
-          label="User List"
-          statusOptions={USER_ROLE_OPTIONS}
-          filterKey="role"
-          filterLabel="Filter Role"
+          label="Staff List"
           showColumnFilter={false}
         />
       </div>
@@ -210,12 +155,9 @@ export const UserTable: React.FC<UserTableProps> = ({
       <DataTable
         columns={columns}
         data={transformedData || []}
-        description="Manage system users and their access levels."
+        description="Manage staff users and their access levels."
         filter={true}
-        label="User List"
-        statusOptions={USER_ROLE_OPTIONS}
-        filterKey="role"
-        filterLabel="Filter Role"
+        label="Staff List"
         showColumnFilter={false}
       />
     </div>

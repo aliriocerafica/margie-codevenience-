@@ -39,6 +39,12 @@ export async function GET(req: NextRequest) {
       },
     });
 
+    // Fetch user information for all unique userIds from stockMovements and voidSales
+    const allUserIds = new Set<string>();
+    stockMovements.forEach((mov: any) => {
+      if (mov.userId) allUserIds.add(mov.userId);
+    });
+
     // Also check for void sales (negative quantity sales with void refId)
     // Only get sales with negative quantity AND refId starting with "void-" to ensure we only get void transactions, not original sales
     const voidSales = await prisma.sale.findMany({
@@ -73,6 +79,26 @@ export async function GET(req: NextRequest) {
       },
     });
 
+    // Add userIds from voidSales (approvedBy is for audit, not for "handled by")
+    voidSales.forEach((sale) => {
+      if (sale.userId) allUserIds.add(sale.userId);
+    });
+
+    // Fetch all users
+    const userMap = new Map<string, string>();
+    if (allUserIds.size > 0) {
+      const users = await prisma.user.findMany({
+        where: {
+          id: { in: Array.from(allUserIds) },
+        },
+        select: {
+          id: true,
+          email: true,
+        },
+      });
+      users.forEach(u => userMap.set(u.id, u.email));
+    }
+
     // Combine data from both sources
     // Use StockMovements as primary source (they are the actual void actions themselves)
     // Only include void sales that have refId starting with "void-" (actual void transactions, not original sales)
@@ -94,7 +120,7 @@ export async function GET(req: NextRequest) {
         quantity: Math.abs(movement.quantity),
         voidAmount: voidAmount,
         reason: movement.reason || null,
-        handledBy: movement.userId || null,
+        handledBy: movement.userId ? userMap.get(movement.userId) || "Unknown" : null,
       });
     });
 
@@ -125,13 +151,15 @@ export async function GET(req: NextRequest) {
         if (existing) {
           existing.voidAmount = Math.abs(sale.totalAmount); // Use actual sale amount
           existing.transactionNo = sale.refId; // Use void transaction refId
+          // Use userId (staff who requested void, or admin if voiding directly)
           if (!existing.handledBy) {
-            existing.handledBy = sale.userId || null;
+            existing.handledBy = sale.userId ? userMap.get(sale.userId) || "Unknown" : null;
           }
         }
       } else {
         // Standalone void sale (no matching StockMovement found)
         const key = `sale-${sale.id}`;
+        // Use userId (staff who requested void, or admin if voiding directly)
         voidMap.set(key, {
           date: sale.createdAt,
           transactionNo: sale.refId || sale.id,
@@ -139,7 +167,7 @@ export async function GET(req: NextRequest) {
           quantity: Math.abs(sale.quantity),
           voidAmount: Math.abs(sale.totalAmount),
           reason: null,
-          handledBy: sale.userId || null,
+          handledBy: sale.userId ? userMap.get(sale.userId) || "Unknown" : null,
         });
       }
     });

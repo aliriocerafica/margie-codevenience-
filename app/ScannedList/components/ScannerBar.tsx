@@ -3,7 +3,8 @@
 import React from "react";
 import { Input } from "@heroui/input";
 import { Button } from "@heroui/button";
-import { Search, ScanLine } from "lucide-react";
+import { Chip } from "@heroui/react";
+import { Search, ScanLine, AlertCircle, AlertTriangle } from "lucide-react";
 import Link from "next/link";
 
 export type ScannerBarProps = {
@@ -65,6 +66,12 @@ export const ScannerBar: React.FC<ScannerBarProps> = ({ value, onChange, onScan,
 
 	const handleSelect = (p: any) => {
 		if (!onSelect) return;
+		
+		// Prevent adding out of stock products
+		if (p.status === "out_of_stock") {
+			return;
+		}
+		
 		onSelect({
 			id: String(p.id),
 			name: p.name,
@@ -105,23 +112,62 @@ export const ScannerBar: React.FC<ScannerBarProps> = ({ value, onChange, onScan,
 			{open && suggestions.length > 0 && (
 				<div className="absolute z-10 mt-2 w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-lg max-h-72 overflow-auto">
 					<ul className="divide-y divide-gray-100 dark:divide-gray-800">
-						{suggestions.map((p: any) => (
-							<li key={String(p.id)}>
-								<button
-									type="button"
-									onClick={() => handleSelect(p)}
-									className="w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-800"
-								>
-									<div className="flex items-center justify-between">
-										<div className="min-w-0">
-											<p className="truncate font-medium text-gray-900 dark:text-white">{p.name}</p>
-											<p className="truncate text-xs text-gray-500 dark:text-gray-400">{p.category?.name ?? "Unknown"} • {String(p.barcode ?? p.id).padStart(12, "0")}</p>
+						{suggestions.map((p: any) => {
+							const isOutOfStock = p.status === "out_of_stock";
+							const isLowStock = p.status === "low_stock";
+							const stock = parseInt(p.stock) || 0;
+							
+							return (
+								<li key={String(p.id)}>
+									<button
+										type="button"
+										onClick={() => handleSelect(p)}
+										disabled={isOutOfStock}
+										className={`w-full text-left px-4 py-3 transition-colors ${
+											isOutOfStock 
+												? 'opacity-60 cursor-not-allowed bg-gray-50 dark:bg-gray-800/50' 
+												: 'hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer'
+										}`}
+									>
+										<div className="flex items-center justify-between gap-3">
+											<div className="min-w-0 flex-1">
+												<div className="flex items-center gap-2 mb-1">
+													<p className={`truncate font-medium ${isOutOfStock ? 'text-gray-500 dark:text-gray-500' : 'text-gray-900 dark:text-white'}`}>
+														{p.name}
+													</p>
+													{isOutOfStock && (
+														<Chip 
+															size="sm" 
+															variant="flat" 
+															color="danger"
+															startContent={<AlertCircle className="w-3 h-3" />}
+														>
+															Out of Stock
+														</Chip>
+													)}
+													{isLowStock && (
+														<Chip 
+															size="sm" 
+															variant="flat" 
+															color="warning"
+															startContent={<AlertTriangle className="w-3 h-3" />}
+														>
+															Low Stock ({stock})
+														</Chip>
+													)}
+												</div>
+												<p className="truncate text-xs text-gray-500 dark:text-gray-400">
+													{p.category?.name ?? "Unknown"} • {String(p.barcode ?? p.id).padStart(12, "0")}
+												</p>
+											</div>
+											<div className={`text-sm font-semibold ${isOutOfStock ? 'text-gray-400 dark:text-gray-600' : 'text-[#003366] dark:text-[#4488cc]'}`}>
+												{p.price}
+											</div>
 										</div>
-										<div className="text-sm font-semibold text-[#003366] dark:text-[#4488cc]">{p.price}</div>
-									</div>
-								</button>
-							</li>
-						))}
+									</button>
+								</li>
+							);
+						})}
 					</ul>
 				</div>
 			)}

@@ -35,7 +35,9 @@ import {
     Tag,
     ScanLine,
     Barcode,
-    TrendingUp
+    TrendingUp,
+    ShieldCheck,
+    Receipt
 } from "lucide-react";
 import Link from "next/link";
 import { ThemeSwitch } from "./ThemeSwitch";
@@ -45,7 +47,8 @@ import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import StockAlertSettings from "./StockAlertSettings";
 import { signOut } from "next-auth/react";
 import { useNotifications } from "@/contexts/NotificationContext";
-import { useSession } from "next-auth/react"
+import { useSession } from "next-auth/react";
+import SplashScreen from "@/components/SplashScreen";
 
 interface SidebarProps {
     children: React.ReactNode;
@@ -63,6 +66,8 @@ export default function Sidebar({ children }: SidebarProps) {
     const { openSearchModal } = useSearch();
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const { clearAllNotifications } = useNotifications();
+    const [pendingVoidRequestsCount, setPendingVoidRequestsCount] = useState(0);
+    const [showSplashAfterLogout, setShowSplashAfterLogout] = useState(false);
 
     // Enable keyboard shortcuts
     useKeyboardShortcuts();
@@ -71,6 +76,65 @@ export default function Sidebar({ children }: SidebarProps) {
     useEffect(() => {
         setIsMounted(true);
     }, []);
+
+    // Fetch pending void requests count for admin users
+    useEffect(() => {
+        const fetchPendingVoidRequests = async () => {
+            const userRole = (session as any)?.user?.role;
+            if (userRole === 'Admin') {
+                try {
+                    const response = await fetch('/api/void-requests?status=pending', {
+                        cache: 'no-store',
+                        headers: {
+                            'Cache-Control': 'no-cache',
+                        },
+                    });
+                    if (response.ok) {
+                        const data = await response.json();
+                        setPendingVoidRequestsCount(data.length);
+                    }
+                } catch (error) {
+                    console.error('Error fetching void requests:', error);
+                }
+            }
+        };
+
+        if (session) {
+            fetchPendingVoidRequests();
+            
+            // Refresh count every 5 seconds for more real-time updates
+            const interval = setInterval(fetchPendingVoidRequests, 5000);
+            
+            // Also refresh when page becomes visible (user returns to tab)
+            const handleVisibilityChange = () => {
+                if (document.visibilityState === 'visible') {
+                    fetchPendingVoidRequests();
+                }
+            };
+            document.addEventListener('visibilitychange', handleVisibilityChange);
+            
+            // Refresh when user focuses the window
+            const handleFocus = () => {
+                fetchPendingVoidRequests();
+            };
+            window.addEventListener('focus', handleFocus);
+            
+            // Listen for void request events (created/updated)
+            const handleVoidRequestEvent = () => {
+                fetchPendingVoidRequests();
+            };
+            window.addEventListener('voidRequestCreated', handleVoidRequestEvent);
+            window.addEventListener('voidRequestUpdated', handleVoidRequestEvent);
+            
+            return () => {
+                clearInterval(interval);
+                document.removeEventListener('visibilitychange', handleVisibilityChange);
+                window.removeEventListener('focus', handleFocus);
+                window.removeEventListener('voidRequestCreated', handleVoidRequestEvent);
+                window.removeEventListener('voidRequestUpdated', handleVoidRequestEvent);
+            };
+        }
+    }, [session]);
 
     const menuItems = [
         {
@@ -121,6 +185,19 @@ export default function Sidebar({ children }: SidebarProps) {
             icon: TrendingUp,
             hasNotification: false,
         },
+        {
+            name: "Receipts",
+            href: "/receipts",
+            icon: Receipt,
+            hasNotification: false,
+        },
+        {
+            name: "Void Requests",
+            href: "/void-requests",
+            icon: ShieldCheck,
+            hasNotification: pendingVoidRequestsCount > 0,
+            notificationCount: pendingVoidRequestsCount,
+        },
     ];
 
     const utilityItems = [
@@ -144,12 +221,23 @@ export default function Sidebar({ children }: SidebarProps) {
 
             // Delegate redirect to Auth.js so cookies/state are fully cleared
             await signOut({ callbackUrl: '/' });
+            
+            // After logout completes, show splash screen then redirect
+            setIsLoading(false);
+            setShowSplashAfterLogout(true);
+            
+            // Redirect after showing splash screen
+            setTimeout(() => {
+                window.location.href = '/';
+            }, 1500); // Show splash for 1.5 seconds before redirect
         } catch (error) {
             console.error('Logout error:', error);
             // Hard fallback
-            window.location.href = '/';
-        } finally {
             setIsLoading(false);
+            setShowSplashAfterLogout(true);
+            setTimeout(() => {
+                window.location.href = '/';
+            }, 1500);
         }
     };
 
@@ -163,14 +251,14 @@ export default function Sidebar({ children }: SidebarProps) {
         openSearchModal();
     };
 
-    // Role-based filtering: hide Dashboard, Products, Categories, Team, and Reports for Staff
+    // Role-based filtering: hide Dashboard, Products, Categories, Team, Reports, and Void Requests for Staff
     // During SSR or before mount, show safe links to prevent hydration mismatch
     // After mount, apply role-based filtering
     const userRole = (session as any)?.user?.role;
     const baseMenuItems = !isMounted || status === "loading"
         ? menuItems.filter((item) => ["Scan Items", "Checkout"].includes(item.name))
         : userRole === 'Staff'
-        ? menuItems.filter((item) => !["Dashboard", "Products", "Categories", "Team", "Reports"].includes(item.name))
+        ? menuItems.filter((item) => !["Dashboard", "Products", "Categories", "Team", "Reports", "Void Requests"].includes(item.name))
         : menuItems; // Show all links for Admin users or when session is authenticated
 
     // Filter menu items based on local search query (for sidebar filtering)
@@ -183,7 +271,11 @@ export default function Sidebar({ children }: SidebarProps) {
     );
 
     return (
-        <div className="flex h-screen bg-gray-50 dark:bg-gray-950 overflow-hidden">
+        <>
+            {/* Show splash screen after logout */}
+            {showSplashAfterLogout && <SplashScreen autoHide={false} />}
+            
+            <div className={`flex h-screen bg-gray-50 dark:bg-gray-950 overflow-hidden ${showSplashAfterLogout ? 'opacity-0 pointer-events-none' : ''}`}>
             {/* Desktop Sidebar */}
             <div className={`hidden md:flex md:flex-col transition-all duration-300 relative ${isCollapsed ? 'md:w-20 lg:w-20' : 'md:w-72 lg:w-72'
                 }`}>
@@ -224,6 +316,7 @@ export default function Sidebar({ children }: SidebarProps) {
                         {filteredMenuItems.map((item) => {
                             const Icon = item.icon;
                             const isActive = pathname === item.href;
+                            const notificationCount = (item as any).notificationCount;
 
                             return (
                                 <Link
@@ -237,12 +330,24 @@ export default function Sidebar({ children }: SidebarProps) {
                                 >
                                     <div className="relative flex-shrink-0">
                                         <Icon className="h-5 w-5" />
-                                        {item.hasNotification && (
+                                        {item.hasNotification && !notificationCount && (
                                             <div className="absolute -top-1 -right-1 w-2 h-2 bg-orange-500 rounded-full"></div>
+                                        )}
+                                        {notificationCount > 0 && (
+                                            <div className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-orange-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
+                                                {notificationCount > 99 ? '99+' : notificationCount}
+                                            </div>
                                         )}
                                     </div>
                                     {!isCollapsed && (
-                                        <span className="ml-3 whitespace-nowrap">{item.name}</span>
+                                        <span className="ml-3 whitespace-nowrap flex items-center justify-between flex-1">
+                                            {item.name}
+                                            {notificationCount > 0 && (
+                                                <span className="ml-2 bg-orange-500 text-white text-xs font-bold rounded-full px-2 py-0.5">
+                                                    {notificationCount > 99 ? '99+' : notificationCount}
+                                                </span>
+                                            )}
+                                        </span>
                                     )}
                                 </Link>
                             );
@@ -413,6 +518,7 @@ export default function Sidebar({ children }: SidebarProps) {
                             {filteredMenuItems.map((item) => {
                                 const Icon = item.icon;
                                 const isActive = pathname === item.href;
+                                const notificationCount = (item as any).notificationCount;
 
                                 return (
                                     <Link
@@ -426,11 +532,23 @@ export default function Sidebar({ children }: SidebarProps) {
                                     >
                                         <div className="relative flex-shrink-0">
                                             <Icon className="h-5 w-5" />
-                                            {item.hasNotification && (
+                                            {item.hasNotification && !notificationCount && (
                                                 <div className="absolute -top-1 -right-1 w-2 h-2 bg-orange-500 rounded-full"></div>
                                             )}
+                                            {notificationCount > 0 && (
+                                                <div className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-orange-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
+                                                    {notificationCount > 99 ? '99+' : notificationCount}
+                                                </div>
+                                            )}
                                         </div>
-                                        <span className="ml-3 whitespace-nowrap">{item.name}</span>
+                                        <span className="ml-3 whitespace-nowrap flex items-center justify-between flex-1">
+                                            {item.name}
+                                            {notificationCount > 0 && (
+                                                <span className="ml-2 bg-orange-500 text-white text-xs font-bold rounded-full px-2 py-0.5">
+                                                    {notificationCount > 99 ? '99+' : notificationCount}
+                                                </span>
+                                            )}
+                                        </span>
                                     </Link>
                                 );
                             })}
@@ -549,6 +667,7 @@ export default function Sidebar({ children }: SidebarProps) {
                 isOpen={isSettingsOpen}
                 onClose={() => setIsSettingsOpen(false)}
             />
-        </div>
+            </div>
+        </>
     );
 }   

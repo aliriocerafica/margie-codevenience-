@@ -11,6 +11,7 @@ export type ReceiptLine = {
 
 export type ReceiptSummaryProps = {
     subtotal: number;
+    discount?: number;
     amountReceived?: number;
     change?: number;
     additionalFees?: ReceiptLine[];
@@ -18,7 +19,7 @@ export type ReceiptSummaryProps = {
     onClear?: () => void;
 };
 
-export const ReceiptSummary: React.FC<ReceiptSummaryProps> = ({ subtotal, amountReceived = 0, change = 0, additionalFees = [], onCheckout, onClear }) => {
+export const ReceiptSummary: React.FC<ReceiptSummaryProps> = ({ subtotal, discount = 0, amountReceived = 0, change = 0, additionalFees = [], onCheckout, onClear }) => {
     const formatCurrency2dp = (amount: number) => {
         return new Intl.NumberFormat('en-PH', {
             style: 'currency',
@@ -28,7 +29,7 @@ export const ReceiptSummary: React.FC<ReceiptSummaryProps> = ({ subtotal, amount
         }).format(amount);
     };
     const feesTotal = additionalFees.reduce((sum, f) => sum + f.value, 0);
-    const grandTotal = Math.max(0, subtotal + feesTotal);
+    const grandTotal = Math.max(0, subtotal - discount + feesTotal);
 
     return (
         <div className="rounded-xl border border-gray-200 dark:border-gray-800 p-5 bg-white dark:bg-gray-900 space-y-4">
@@ -39,6 +40,12 @@ export const ReceiptSummary: React.FC<ReceiptSummaryProps> = ({ subtotal, amount
                     <span className="text-gray-600 dark:text-gray-400">Subtotal</span>
                     <span className="font-medium">{formatCurrency2dp(subtotal)}</span>
                 </div>
+                {discount > 0 && (
+                    <div className="flex items-center justify-between">
+                        <span className="text-gray-600 dark:text-gray-400">Discount</span>
+                        <span className="font-medium text-red-600 dark:text-red-400">-{formatCurrency2dp(discount)}</span>
+                    </div>
+                )}
                 {additionalFees.map((f, idx) => (
                     <div key={idx} className="flex items-center justify-between">
                         <span className="text-gray-600 dark:text-gray-400">{f.label}</span>

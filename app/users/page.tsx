@@ -4,7 +4,6 @@ import React, { useState, useEffect } from "react";
 import { UserTable } from "./components/UserTable";
 import { AddUserModal } from "./components/AddUserModal";
 import { EditUserModal } from "./components/EditUserModal";
-import { DeleteUserModal } from "./components/DeleteUserModal";
 import { Button } from "@heroui/button";
 import { UserPlus } from "lucide-react";
 import { usePageHighlight } from "@/hooks/usePageHighlight";
@@ -24,7 +23,6 @@ export default function UsersPage() {
   const [error, setError] = useState<string | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
 
   // Enable page highlighting for search results
@@ -42,7 +40,9 @@ export default function UsersPage() {
       }
       const data = await response.json();
       console.log("Users data received:", data);
-      setUsers(data);
+      // Filter to only show staff users
+      const staffUsers = data.filter((user: User) => user.role === "Staff");
+      setUsers(staffUsers);
     } catch (err) {
       console.error("Error fetching users:", err);
       setError(err instanceof Error ? err.message : "An error occurred");
@@ -65,19 +65,8 @@ export default function UsersPage() {
     setIsEditModalOpen(true);
   };
 
-  const handleRequestDelete = (user: User) => {
-    setSelectedUser(user);
-    setIsDeleteModalOpen(true);
-  };
-
   const handleUserUpdated = (updated: User) => {
     setUsers(prev => prev.map(u => (u.id === updated.id ? updated : u)));
-    setIsEditModalOpen(false);
-    setSelectedUser(null);
-  };
-
-  const handleUserDeleted = (userId: string) => {
-    setUsers(prev => prev.filter(u => u.id !== userId));
     setIsEditModalOpen(false);
     setSelectedUser(null);
   };
@@ -87,8 +76,8 @@ export default function UsersPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4 mb-6">
         <div className="flex-1">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">User Management</h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1 text-sm sm:text-base">Manage system users and their roles</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">Staff Management</h1>
+          <p className="text-gray-600 dark:text-gray-400 mt-1 text-sm sm:text-base">Manage staff users and their access</p>
         </div>
 
         <div className="flex-shrink-0">
@@ -99,21 +88,20 @@ export default function UsersPage() {
             className="bg-gradient-to-r from-[#003366] to-[#004488] hover:from-[#002244] hover:to-[#003366] w-full sm:w-auto"
             size="md"
           >
-            Add User
+            Add Staff
           </Button>
         </div>
       </div>
 
-      {/* User Table */}
+      {/* Staff Table */}
       <UserTable
         data={users}
         isLoading={isLoading}
         error={error}
         onEdit={handleEdit}
-        onDelete={handleRequestDelete}
       />
 
-      {/* Add User Modal */}
+      {/* Add Staff Modal */}
       <AddUserModal
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
@@ -125,13 +113,6 @@ export default function UsersPage() {
         user={selectedUser}
         onClose={() => { setIsEditModalOpen(false); setSelectedUser(null); }}
         onUserUpdated={handleUserUpdated}
-      />
-
-      <DeleteUserModal
-        isOpen={isDeleteModalOpen}
-        user={selectedUser ? { id: selectedUser.id, email: selectedUser.email } : null}
-        onClose={() => { setIsDeleteModalOpen(false); setSelectedUser(null); }}
-        onDeleted={handleUserDeleted}
       />
     </div>
   );

@@ -12,10 +12,12 @@ export type ReceiptPayload = {
     logoPath?: string; // public path e.g. /Logo.png
     items: ReceiptItem[];
     subtotal: number;
+    discount?: number;
     total: number;
     paidAmount?: number;
     change?: number;
     timestamp?: Date;
+    transactionNo?: string;
 };
 
 const formatCurrency = (amount: number) => {
@@ -119,6 +121,7 @@ export const buildReceiptHtml = (data: ReceiptPayload) => {
 
         <div class="totals">
             <div class="row"><span>Subtotal</span><span>${formatCurrency(data.subtotal)}</span></div>
+            ${data.discount && data.discount > 0 ? `<div class="row"><span>Discount</span><span>-${formatCurrency(data.discount)}</span></div>` : ''}
             <div class="sep"></div>
             <div class="row em"><span>Total</span><span>${formatCurrency(data.total)}</span></div>
         </div>
@@ -132,6 +135,7 @@ export const buildReceiptHtml = (data: ReceiptPayload) => {
         <hr />
 
         <div class="footer">
+            ${data.transactionNo ? `<div class="small">Transaction No: ${data.transactionNo}</div>` : ''}
             <div class="small"># ITEMS SOLD ${itemsSold}</div>
             <div class="small">${date} ${time}</div>
             <div class="thanks">Thank you for your purchase!</div>
