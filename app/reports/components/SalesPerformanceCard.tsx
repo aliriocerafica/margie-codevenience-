@@ -733,10 +733,10 @@ export default function SalesPerformanceCard() {
               onSelectionChange={(key) => setActiveTab(key as string)}
               aria-label="Sales Performance Tabs"
               classNames={{
-                tabList: "gap-6 w-full relative rounded-none p-0 border-b border-divider",
-                cursor: "w-full bg-blue-500",
-                tab: "max-w-fit px-0 h-12",
-                tabContent: "group-data-[selected=true]:text-blue-600 dark:group-data-[selected=true]:text-blue-400"
+                tabList: "gap-2 w-full relative rounded-none p-0 border-b border-divider",
+                cursor: "bg-transparent",
+                tab: "max-w-fit px-4 h-11 rounded-lg text-sm font-medium text-gray-500 dark:text-gray-400 transition-all data-[selected=true]:bg-blue-50 data-[selected=true]:text-blue-600 dark:data-[selected=true]:bg-blue-500/10 dark:data-[selected=true]:text-blue-400",
+                tabContent: "group-data-[selected=true]:text-inherit"
               }}
             >
               <Tab 
